@@ -52,7 +52,9 @@ public class WebServer implements Closeable {
             });
 
             cfg.routes
-                    .get("/minecraft/servers/{server}/status", router.minecraftController::serverStatus);
+                    .get("/minecraft/servers/{server}/status", router.minecraftController::serverStatus)
+                    .get("/nbnhhsh", router.miscController::nbnhhsh)
+            ;
 
 
             cfg.routes

@@ -8,6 +8,8 @@ import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.network.ErrorCode;
 import xyz.zcraft.asteroid.network.Response;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
@@ -83,7 +85,7 @@ public class RequestUtil {
     public static String requireString(Context context, String param) throws ApiException {
         final String s = context.queryParam(param);
         if (s != null && !s.isBlank()) {
-            return s;
+            return URLDecoder.decode(s, StandardCharsets.UTF_8);
         } else {
             throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Missing or empty parameter: " + param);
         }
