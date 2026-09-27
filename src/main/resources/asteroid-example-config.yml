@@ -1,0 +1,17 @@
+# === Config for Asteroid ===
+asteroid:
+  # Bearer token for authenticating when calling Asteroid's API
+  token:
+  # Enable debug endpoints, not recommended for production use
+  debugMode: false
+
+# === Config for Javalin webserver ===
+webserver:
+  # Port to run the server on
+  port: 8728
+  # Max number of threads for handling web requests
+  maxThreads: 10
+  # Min number of threads for handling web requests
+  minThreads: 2
+  # Idle timeout for web server threads in milliseconds
+  idleTimeout: 60000
