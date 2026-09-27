@@ -37,7 +37,7 @@ public class MiscController {
 
                 final JsonArray data = JsonParser.parseString(response.body()).getAsJsonArray();
 
-                putResult(ctx, data);
+                putResult(ctx, GSON.toJsonTree(Map.of("result", data)));
             }
         } catch (Exception e) {
             LOG.error("Error occurred while processing nbnhhsh request", e);
