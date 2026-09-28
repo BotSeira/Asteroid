@@ -22,6 +22,10 @@ public class MiscController {
     private final static Logger LOG = LogManager.getLogger(MiscController.class);
     private final static Gson GSON = new Gson();
 
+    public void serverStatus(Context ctx) {
+        putResult(ctx, Map.of("status", "running"));
+    }
+
     public void nbnhhsh(Context ctx) {
         final String text = requireString(ctx, "text");
 
