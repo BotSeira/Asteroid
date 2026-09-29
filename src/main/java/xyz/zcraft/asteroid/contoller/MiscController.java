@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.network.ErrorCode;
+import xyz.zcraft.asteroid.util.VersionInfo;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -23,7 +24,7 @@ public class MiscController {
     private final static Gson GSON = new Gson();
 
     public void serverStatus(Context ctx) {
-        putResult(ctx, Map.of("status", "running"));
+        putResult(ctx, Map.of("version", VersionInfo.getVersion()));
     }
 
     public void nbnhhsh(Context ctx) {

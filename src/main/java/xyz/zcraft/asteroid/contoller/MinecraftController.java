@@ -21,7 +21,7 @@ public class MinecraftController {
     private final static Logger LOG = LogManager.getLogger(MinecraftController.class);
     private final static Gson GSON = new Gson();
 
-    private static final Pattern SERVER_PATTERN = Pattern.compile("^(?:https?://)?([a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)+)(?::[0-9]+)?$");
+    private static final Pattern SERVER_PATTERN = Pattern.compile("^(?:https?://)?([a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)+)(?::([0-9]+))?$");
 
     public void serverStatus(Context ctx) {
         final String serverUrl = URLDecoder.decode(ctx.pathParam("server"), StandardCharsets.UTF_8);
@@ -32,9 +32,12 @@ public class MinecraftController {
             throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Invalid server URL");
         }
 
-
         final String host = matcher.group(1);
-        final int port = matcher.groupCount() == 2 ? Integer.parseInt(matcher.group(2)) : 25565;
+        final int port = (matcher.groupCount() == 2 && matcher.group(2) != null) ? Integer.parseInt(matcher.group(2)) : 25565;
+
+        if (port < 1 || port > 65535) {
+            throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Invalid port");
+        }
 
         try {
             final MinecraftServerProbe.Result probe = MinecraftServerProbe.probe(host, port);
