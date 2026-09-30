@@ -5,36 +5,52 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Hashtable;
 import java.util.List;
 
 public class MinecraftServerProbe {
     private static final Gson GSON = new Gson();
 
-    public static Result probe(String host, int port) throws IOException {
+    public static Result probe(String host) throws IOException {
+        ServerAddress address = resolveMinecraftAddress(host);
+
+        return probe(
+                address.connectHost(),
+                address.port(),
+                host
+        );
+    }
+
+    private static Result probe(String connectHost, int port, String handshakeHost) throws IOException {
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, port), 5000);
+            socket.connect(
+                    new InetSocketAddress(connectHost, port),
+                    5000
+            );
+
             socket.setSoTimeout(5000);
 
             InputStream in = socket.getInputStream();
             OutputStream out = socket.getOutputStream();
 
-            // Handshake
             ByteArrayOutputStream handshakeData = new ByteArrayOutputStream();
             DataOutputStream handshake = new DataOutputStream(handshakeData);
 
-            writeVarInt(handshake, 0x00); // packet id
-
-            // Protocol version isn't important for a status request in practice.
+            writeVarInt(handshake, 0x00);
             writeVarInt(handshake, -1);
 
-            writeString(handshake, host);
+            writeString(handshake, handshakeHost);
             handshake.writeShort(port);
 
-            writeVarInt(handshake, 1); // next state = status
+            writeVarInt(handshake, 1);
 
             writePacket(out, handshakeData.toByteArray());
 
@@ -94,21 +110,71 @@ public class MinecraftServerProbe {
             DataInputStream dataIn = new DataInputStream(in);
             long returnedPayload = dataIn.readLong();
 
-            long latencyMs =
-                    (System.nanoTime() - start) / 1_000_000;
+            long latencyMs = (System.nanoTime() - start) / 1_000_000;
 
             if (returnedPayload != payload) {
                 throw new IOException("Invalid pong payload");
             }
 
-            return new Result(host, port, latencyMs, GSON.fromJson(status, Status.class));
+            return new Result(connectHost, port, latencyMs, GSON.fromJson(status, Status.class));
         }
+    }
+
+    public static Result probe(String host, int port) throws IOException {
+        return probe(host, port, host);
     }
 
     private static void writePacket(OutputStream out, byte[] data) throws IOException {
         writeVarInt(out, data.length);
         out.write(data);
         out.flush();
+    }
+
+    private static ServerAddress resolveMinecraftAddress(String host) throws IOException {
+        String srvName = "_minecraft._tcp." + host;
+
+        Hashtable<String, String> env = new Hashtable<>();
+        env.put(
+                "java.naming.factory.initial",
+                "com.sun.jndi.dns.DnsContextFactory"
+        );
+
+        try {
+            DirContext context = new InitialDirContext(env);
+
+            Attributes attributes = context.getAttributes(
+                    srvName,
+                    new String[]{"SRV"}
+            );
+
+            Attribute srv = attributes.get("SRV");
+
+            if (srv == null || srv.size() == 0) {
+                return new ServerAddress(host, 25565);
+            }
+
+            String value = srv.get().toString();
+
+            String[] parts = value.trim().split("\\s+");
+
+            int port = Integer.parseInt(parts[2]);
+            String target = parts[3];
+
+            if (target.endsWith(".")) {
+                target = target.substring(0, target.length() - 1);
+            }
+
+            return new ServerAddress(target, port);
+
+        } catch (Exception e) {
+            return new ServerAddress(host, 25565);
+        }
+    }
+
+    private record ServerAddress(
+            String connectHost,
+            int port
+    ) {
     }
 
     private static void writeString(OutputStream out, String value) throws IOException {
@@ -219,7 +285,7 @@ public class MinecraftServerProbe {
     public record Players(
             Long max,
             Long online,
-            List<Sample> samples
+            List<Sample> sample
     ) {
         public record Sample(
                 String id,

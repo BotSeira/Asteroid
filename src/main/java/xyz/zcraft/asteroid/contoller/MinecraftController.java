@@ -33,14 +33,15 @@ public class MinecraftController {
         }
 
         final String host = matcher.group(1);
-        final int port = (matcher.groupCount() == 2 && matcher.group(2) != null) ? Integer.parseInt(matcher.group(2)) : 25565;
+        final Integer port = (matcher.groupCount() == 2 && matcher.group(2) != null) ? Integer.parseInt(matcher.group(2)) : null;
 
-        if (port < 1 || port > 65535) {
+
+        if (port != null && (port < 1 || port > 65535)) {
             throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Invalid port");
         }
 
         try {
-            final MinecraftServerProbe.Result probe = MinecraftServerProbe.probe(host, port);
+            final MinecraftServerProbe.Result probe = (port == null ? MinecraftServerProbe.probe(host) : MinecraftServerProbe.probe(host, port));
 
             putResult(ctx, Map.of(
                     "host", probe.host(),
