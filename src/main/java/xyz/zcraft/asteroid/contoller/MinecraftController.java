@@ -1,6 +1,6 @@
 package xyz.zcraft.asteroid.contoller;
 
-import com.google.gson.Gson;
+import com.google.gson.*;
 import io.javalin.http.Context;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -43,18 +43,23 @@ public class MinecraftController {
         try {
             final MinecraftServerProbe.Result probe = (port == null ? MinecraftServerProbe.probe(host) : MinecraftServerProbe.probe(host, port));
 
-            putResult(ctx, Map.of(
-                    "host", probe.host(),
-                    "port", probe.port(),
-                    "latency", probe.latencyMs(),
-                    "status", Map.of(
-                            "version", probe.status().version(),
-                            "players", probe.status().players(),
-                            "description", probe.status().descriptionText(),
-                            "descriptionRaw", probe.status().description(),
-                            "favicon", probe.status().favicon()
-                    )
-            ));
+            JsonObject obj = new JsonObject();
+
+            obj.addProperty("host", probe.host());
+            obj.addProperty("port", probe.port());
+            obj.addProperty("latency", probe.latencyMs());
+
+            JsonObject statusObj = new JsonObject();
+
+            statusObj.addProperty("version", probe.status().version());
+            statusObj.addProperty("players", probe.status().players());
+            statusObj.addProperty("description", probe.status().descriptionText());
+            statusObj.addProperty("descriptionRaw", probe.status().description(),);
+            statusObj.addProperty("favicon", probe.status().favicon());
+
+            obj.add("status", statusObj);
+            
+            putResult(ctx, obj);
         } catch (IOException e) {
             throw new ApiException(ErrorCode.FETCH_FAILED, "Failed to probe server");
         }
