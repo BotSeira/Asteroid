@@ -54,7 +54,7 @@ public class MinecraftController {
             statusObj.addProperty("version", probe.status().version());
             statusObj.addProperty("players", probe.status().players());
             statusObj.addProperty("description", probe.status().descriptionText());
-            statusObj.addProperty("descriptionRaw", probe.status().description(),);
+            statusObj.addProperty("descriptionRaw", probe.status().description());
             statusObj.addProperty("favicon", probe.status().favicon());
 
             obj.add("status", statusObj);
