@@ -51,7 +51,7 @@ public class MinecraftController {
 
             JsonObject statusObj = new JsonObject();
 
-            statusObj.addProperty("version", probe.status().version());
+            statusObj.add("version", GSON.toJsonTree(probe.status().version()));
             statusObj.addProperty("players", probe.status().players());
             statusObj.addProperty("description", probe.status().descriptionText());
             statusObj.addProperty("descriptionRaw", probe.status().description());
