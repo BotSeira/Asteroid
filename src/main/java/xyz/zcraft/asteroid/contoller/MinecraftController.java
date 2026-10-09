@@ -53,7 +53,7 @@ public class MinecraftController {
 
             statusObj.add("version", GSON.toJsonTree(probe.status().version()));
             statusObj.add("players", GSON.toJsonTree(probe.status().players()));
-            statusObj.addProperty("description", probe.status().descriptionText());
+            statusObj.add("description", probe.status().descriptionText());
             statusObj.addProperty("descriptionRaw", probe.status().description());
             statusObj.addProperty("favicon", probe.status().favicon());
 
