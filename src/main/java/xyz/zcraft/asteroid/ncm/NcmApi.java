@@ -41,7 +41,13 @@ public class NcmApi {
         final HttpResponse<String> response = get("/search", Query.create().param("keywords", keywords));
         final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
 
-        final JsonArray songsArr = obj.get("result").getAsJsonObject().get("songs").getAsJsonArray();
+        final JsonElement jsonElement = obj.get("result").getAsJsonObject().get("songs");
+
+        if (!jsonElement.isJsonArray()) {
+            return List.of();
+        }
+
+        final JsonArray songsArr = jsonElement.getAsJsonArray();
 
         final List<Song> songs = new ArrayList<>(songsArr.size());
 
