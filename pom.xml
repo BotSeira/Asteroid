@@ -190,16 +190,5 @@
             <scope>test</scope>
         </dependency>
 
-        <dependency>
-            <groupId>org.graalvm.polyglot</groupId>
-            <artifactId>polyglot</artifactId>
-            <version>24.1.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.graalvm.polyglot</groupId>
-            <artifactId>js</artifactId>
-            <version>24.1.0</version>
-        </dependency>
     </dependencies>
 </project>
