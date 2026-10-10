@@ -7,14 +7,16 @@ import java.util.List;
 public class MinecraftServerProbeTest {
     private static final List<String> servers = List.of(
             "mc.hypixel.net",
-            "play.molean.com"
+            "play.molean.com",
+            "mc.zcraft.xyz",
+            "asakuraaoi.cn"
     );
 
     @Test
     public void testServerProbe() throws IOException {
         for (String server : servers) {
             System.out.println("Testing server probe for " + server);
-            final MinecraftServerProbe.Result probe = MinecraftServerProbe.probe(server, 25565);
+            final MinecraftServerProbe.Result probe = MinecraftServerProbe.probe(server);
             System.out.printf("""
                         - Host: %s
                         - Port: %s

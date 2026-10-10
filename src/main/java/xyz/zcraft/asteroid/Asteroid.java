@@ -17,9 +17,7 @@ public class Asteroid {
     @Getter
     private static AppConfig conf;
 
-    static void main() {
-        LOG.info("Loading configuration...");
-
+    public static boolean loadConfig() {
         if (!ConfigLoader.configExists()) {
             LOG.warn("Config file does not exist, copying default config. Please check it before restarting.");
             try {
@@ -27,7 +25,7 @@ public class Asteroid {
             } catch (IOException e) {
                 LOG.error("Failed to copy default config", e);
             }
-            return;
+            return false;
         }
 
         try {
@@ -35,6 +33,15 @@ public class Asteroid {
         } catch (RuntimeException e) {
             LOG.error("Invalid configuration. Please check config.yml.", e);
             System.exit(1);
+            return false;
+        }
+        return true;
+    }
+
+    static void main() {
+        LOG.info("Loading configuration...");
+
+        if (!loadConfig()) {
             return;
         }
 

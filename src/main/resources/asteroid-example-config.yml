@@ -15,3 +15,10 @@ webserver:
   minThreads: 2
   # Idle timeout for web server threads in milliseconds
   idleTimeout: 60000
+
+# === Config for NCM API Enhanced ===
+ncm:
+  endpoint:
+  audioFp:
+    endpoint:
+    token:
