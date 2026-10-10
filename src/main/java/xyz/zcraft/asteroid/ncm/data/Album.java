@@ -8,6 +8,7 @@ public record Album(
         String name,
         long id,
         long picId,
+        String picUrl,
         long mark,
         int status
 ) {

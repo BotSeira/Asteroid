@@ -6,8 +6,10 @@ import org.apache.logging.log4j.Logger;
 import org.snakeyaml.engine.v2.common.UriEncoder;
 import xyz.zcraft.asteroid.Asteroid;
 import xyz.zcraft.asteroid.config.NcmConfig;
+import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.ncm.data.MatchResult;
 import xyz.zcraft.asteroid.ncm.data.Song;
+import xyz.zcraft.asteroid.network.ErrorCode;
 
 import java.io.IOException;
 import java.net.URI;
@@ -65,7 +67,11 @@ public class NcmApi {
         try {
             final HttpResponse<String> response = get("/audio/match", Query.create().param("duration", duration).param("audioFP", audioFP));
             final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
-            final JsonArray resultArr = obj.get("data").getAsJsonObject().get("result").getAsJsonArray();
+            final JsonElement jsonElement = obj.get("data").getAsJsonObject().get("result");
+            if (!jsonElement.isJsonArray()) {
+                throw new ApiException(ErrorCode.NOT_FOUND, "No match found");
+            }
+            final JsonArray resultArr = jsonElement.getAsJsonArray();
             final List<MatchResult> results = new ArrayList<>(resultArr.size());
             for (JsonElement elem : resultArr) {
                 results.add(GSON.fromJson(elem, MatchResult.class));
