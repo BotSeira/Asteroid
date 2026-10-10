@@ -6,6 +6,7 @@ import org.apache.logging.log4j.Logger;
 import xyz.zcraft.asteroid.config.AppConfig;
 import xyz.zcraft.asteroid.contoller.MinecraftController;
 import xyz.zcraft.asteroid.contoller.MiscController;
+import xyz.zcraft.asteroid.contoller.NcmController;
 
 public class Router {
     private static final Logger LOG = LogManager.getLogger(Router.class);
@@ -13,12 +14,14 @@ public class Router {
     public final AppConfig conf;
 
     final MinecraftController minecraftController;
+    final NcmController ncmController;
     final MiscController miscController;
 
     public Router(AppConfig conf) {
         this.conf = conf;
 
         this.minecraftController = new MinecraftController();
+        this.ncmController = new NcmController();
         this.miscController = new MiscController();
 
         LOG.info("Router created");

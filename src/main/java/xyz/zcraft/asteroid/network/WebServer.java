@@ -53,7 +53,13 @@ public class WebServer implements Closeable {
 
             cfg.routes
                     .get("/minecraft/servers/{server}/status", router.minecraftController::serverStatus)
+
+                    .get("/ncm/songs/search", router.ncmController::searchSong)
+                    .post("/ncm/songs/match", router.ncmController::matchSong)
+                    .get("/ncm/songs/{id}/url", router.ncmController::getSongUrl)
+
                     .get("/nbnhhsh", router.miscController::nbnhhsh)
+
                     .get("/health", router.miscController::serverStatus)
             ;
 

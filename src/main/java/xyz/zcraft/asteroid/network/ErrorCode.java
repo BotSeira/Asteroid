@@ -5,6 +5,8 @@ import lombok.Getter;
 
 @Getter
 public enum ErrorCode {
+    NOT_FOUND(1001),
+
     ILLEGAL_ARGUMENT(2001),
     UNAUTHORIZED(2002),
 
@@ -25,11 +27,9 @@ public enum ErrorCode {
 
     public int getHttpCode() {
         return switch (this) {
-
-            case ErrorCode.UNAUTHORIZED -> 401;
-
-            case ErrorCode.ILLEGAL_ARGUMENT -> 400;
-
+            case NOT_FOUND -> 404;
+            case UNAUTHORIZED -> 401;
+            case ILLEGAL_ARGUMENT -> 400;
             default -> 500;
         };
     }
