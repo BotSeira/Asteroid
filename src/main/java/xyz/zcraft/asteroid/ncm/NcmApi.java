@@ -65,7 +65,7 @@ public class NcmApi {
 
     @NotNull
     public static List<Song> getPlaylistSongs(long playlistId, @Nullable Integer limit, @Nullable Integer offset) {
-        final HttpResponse<String> response = get("/playlist/detail", Query.create()
+        final HttpResponse<String> response = get("/playlist/track/all", Query.create()
                 .param("id", playlistId)
                 .param("limit", limit)
                 .param("offset", offset)
@@ -73,7 +73,7 @@ public class NcmApi {
 
         final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
 
-        final JsonElement jsonElement = obj.get("songs").getAsJsonArray();
+        final JsonElement jsonElement = obj.get("songs");
 
         if (!jsonElement.isJsonArray()) {
             return List.of();
