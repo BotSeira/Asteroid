@@ -123,7 +123,7 @@ public class NcmApi {
             final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
             final JsonElement jsonElement = obj.get("data").getAsJsonObject().get("result");
             if (!jsonElement.isJsonArray()) {
-                throw new ApiException(ErrorCode.NOT_FOUND, "No match found");
+                return List.of();
             }
             final JsonArray resultArr = jsonElement.getAsJsonArray();
             final List<MatchResult> results = new ArrayList<>(resultArr.size());
