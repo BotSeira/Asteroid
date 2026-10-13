@@ -4,9 +4,11 @@ import com.google.gson.Gson;
 import io.javalin.http.Context;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.ncm.NcmApi;
 import xyz.zcraft.asteroid.ncm.data.MatchResult;
+import xyz.zcraft.asteroid.ncm.data.Playlist;
 import xyz.zcraft.asteroid.ncm.data.Song;
 import xyz.zcraft.asteroid.network.ErrorCode;
 
@@ -40,6 +42,22 @@ public class NcmController {
         final String audioFp = NcmApi.getAudioFp(payload.url(), payload.startSeconds(), payload.duration());
         final List<MatchResult> matchResults = NcmApi.matchSong(payload.duration(), audioFp);
         putResult(ctx, Map.of("result", matchResults));
+    }
+
+    public void getPlaylistSongs(@NotNull Context ctx) {
+        final long id = requirePathLong(ctx, "id");
+        final Integer limit = optionalInteger(ctx, "limit", null);
+        final Integer offset = optionalInteger(ctx, "offset", null);
+
+        final List<Song> playlistSongs = NcmApi.getPlaylistSongs(id, limit, offset);
+
+        putResult(ctx, Map.of("result", playlistSongs));
+    }
+
+    public void getPlaylistInfo(@NotNull Context ctx) {
+        final long id = requirePathLong(ctx, "id");
+        final Playlist playlistInfo = NcmApi.getPlaylistInfo(id);
+        putResult(ctx, playlistInfo);
     }
 
     private record SongMatchPayload(String url, int startSeconds, int duration){}

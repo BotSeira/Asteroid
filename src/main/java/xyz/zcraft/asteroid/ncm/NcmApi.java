@@ -1,21 +1,25 @@
 package xyz.zcraft.asteroid.ncm;
 
 import com.google.gson.*;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.snakeyaml.engine.v2.common.UriEncoder;
+import org.jetbrains.annotations.NotNull;
 import xyz.zcraft.asteroid.Asteroid;
 import xyz.zcraft.asteroid.config.NcmConfig;
 import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.ncm.data.MatchResult;
+import xyz.zcraft.asteroid.ncm.data.Playlist;
 import xyz.zcraft.asteroid.ncm.data.Song;
 import xyz.zcraft.asteroid.network.ErrorCode;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,6 +41,7 @@ public class NcmApi {
         Runtime.getRuntime().addShutdownHook(new Thread(CLIENT::close));
     }
 
+    @NotNull
     public static List<Song> searchSong(String keywords) {
         final HttpResponse<String> response = get("/search", Query.create().param("keywords", keywords));
         final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
@@ -58,6 +63,48 @@ public class NcmApi {
         return songs;
     }
 
+    @NotNull
+    public static List<Song> getPlaylistSongs(long playlistId, @Nullable Integer limit, @Nullable Integer offset) {
+        final HttpResponse<String> response = get("/playlist/detail", Query.create()
+                .param("id", playlistId)
+                .param("limit", limit)
+                .param("offset", offset)
+        );
+
+        final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
+
+        final JsonElement jsonElement = obj.get("songs").getAsJsonArray();
+
+        if (!jsonElement.isJsonArray()) {
+            return List.of();
+        }
+
+        final JsonArray songsArr = jsonElement.getAsJsonArray();
+
+        final List<Song> songs = new ArrayList<>(songsArr.size());
+
+        for (JsonElement elem : songsArr) {
+            songs.add(GSON.fromJson(elem, Song.class));
+        }
+
+        return songs;
+    }
+
+    public static Playlist getPlaylistInfo(long playlistId) {
+        try {
+            final HttpResponse<String> response = get("/playlist/detail", Query.create().param("id", playlistId));
+            final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
+            final JsonElement jsonElement = obj.get("playlist");
+            if (!jsonElement.isJsonObject()) {
+                throw new ApiException(ErrorCode.NOT_FOUND, "No match found");
+            }
+            return GSON.fromJson(jsonElement, Playlist.class);
+        } catch (Exception e) {
+            LOG.error("Error getting playlist info", e);
+            throw new RuntimeException("Error getting playlist info", e);
+        }
+    }
+
     public static Optional<String> getSongUrl(long id) {
         try {
             final HttpResponse<String> response = get("/song/url/match", Query.create().param("id", id));
@@ -69,6 +116,7 @@ public class NcmApi {
         return Optional.empty();
     }
 
+    @NotNull
     public static List<MatchResult> matchSong(int duration, String audioFP) {
         try {
             final HttpResponse<String> response = get("/audio/match", Query.create().param("duration", duration).param("audioFP", audioFP));
@@ -139,12 +187,14 @@ public class NcmApi {
         }
 
         public Query param(String key, String value) {
-            params.put(key, UriEncoder.encode(value));
+            params.put(key, URLEncoder.encode(value, StandardCharsets.UTF_8));
             return this;
         }
 
-        public Query param(String key, Object value) {
-            params.put(key, UriEncoder.encode(value.toString()));
+        public Query param(String key, @Nullable Object value) {
+            if (value != null) {
+                params.put(key, URLEncoder.encode(value.toString(), StandardCharsets.UTF_8));
+            }
             return this;
         }
 

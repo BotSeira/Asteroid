@@ -57,6 +57,8 @@ public class WebServer implements Closeable {
                     .get("/ncm/songs/search", router.ncmController::searchSong)
                     .post("/ncm/songs/match", router.ncmController::matchSong)
                     .get("/ncm/songs/{id}/url", router.ncmController::getSongUrl)
+                    .get("/ncm/playlists/{id}/songs", router.ncmController::getPlaylistSongs)
+                    .get("/ncm/playlists/{id}", router.ncmController::getPlaylistInfo)
 
                     .get("/nbnhhsh", router.miscController::nbnhhsh)
 

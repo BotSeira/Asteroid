@@ -82,6 +82,16 @@ public class RequestUtil {
         }
     }
 
+    public static Integer optionalInteger(Context context, String param, Integer fallback) throws ApiException {
+        try {
+            final String obj = context.queryParam(param);
+            if (obj == null) return fallback;
+            return Integer.parseInt(obj);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Invalid parameter: " + param);
+        }
+    }
+
     public static String requireString(Context context, String param) throws ApiException {
         final String s = context.queryParam(param);
         if (s != null && !s.isBlank()) {
