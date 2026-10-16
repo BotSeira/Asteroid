@@ -60,6 +60,17 @@ public class WebServer implements Closeable {
                     .get("/ncm/playlists/{id}/songs", router.ncmController::getPlaylistSongs)
                     .get("/ncm/playlists/{id}", router.ncmController::getPlaylistInfo)
 
+                    .get("/search/brave", router.braveSearchController::search)
+
+                    .get("/browsers/create", router.browserUseController::createBrowser)
+                    .get("/browsers/{browserUuid}/pages", router.browserUseController::getPages)
+                    .get("/browsers/{browserUuid}/pages/create", router.browserUseController::createPage)
+                    .post("/browsers/{browserUuid}/pages/{pageUuid}/navigate", router.browserUseController::navigatePage)
+                    .get("/browsers/{browserUuid}/pages/{pageUuid}/get", router.browserUseController::getPageContent)
+                    .get("/browsers/{browserUuid}/pages/{pageUuid}/waitfor", router.browserUseController::waitForPage)
+                    .get("/browsers/{browserUuid}/pages/{pageUuid}/close", router.browserUseController::closePage)
+                    .get("/browsers/{browserUuid}/close", router.browserUseController::closeBrowser)
+
                     .get("/nbnhhsh", router.miscController::nbnhhsh)
 
                     .get("/health", router.miscController::serverStatus)

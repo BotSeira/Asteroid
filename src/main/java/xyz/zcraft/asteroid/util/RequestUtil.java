@@ -23,6 +23,9 @@ public class RequestUtil {
 
         if (result instanceof JsonElement) {
             data = (JsonElement) result;
+            if (data.isJsonArray()) {
+                data = GSON.toJsonTree(Map.of("result", data));
+            }
         } else {
             data = GSON.toJsonTree(result);
         }
@@ -102,7 +105,12 @@ public class RequestUtil {
     }
 
     public static String optionalString(Context context, String param) throws ApiException {
-        return context.queryParam(param);
+        final String s = context.queryParam(param);
+        if (s != null && !s.isBlank()) {
+            return URLDecoder.decode(s, StandardCharsets.UTF_8);
+        } else {
+            return null;
+        }
     }
 
     public static long requireLong(Context context, String param) throws ApiException {
@@ -130,6 +138,15 @@ public class RequestUtil {
         try {
             final String s = context.pathParam(param);
             return Long.parseLong(Objects.requireNonNull(s));
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Invalid path parameter: " + param);
+        }
+    }
+
+    public static String requirePathString(Context context, String param) throws ApiException {
+        try {
+            final String s = context.pathParam(param);
+            return Objects.requireNonNull(s);
         } catch (IllegalArgumentException | NullPointerException e) {
             throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Invalid path parameter: " + param);
         }

@@ -22,3 +22,13 @@ ncm:
   audioFp:
     endpoint:
     token:
+
+braveSearch:
+  apiKey:
+  proxy:
+    enabled: false
+    host:
+    port:
+
+browser:
+  proxy:
