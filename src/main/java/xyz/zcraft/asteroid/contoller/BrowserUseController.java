@@ -107,6 +107,7 @@ public class BrowserUseController {
         final UUID pageUuid = UUID.fromString(requirePathString(ctx, "pageUuid"));
         final BrowserInstance browser = browserService.getBrowser(uuid);
         browser.waitForPage(pageUuid, timeout);
+        putResult(ctx, "page_uuid", pageUuid.toString());
     }
 
     public record NavigateRequest(String url) {
