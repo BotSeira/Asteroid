@@ -47,6 +47,7 @@ public class BrowserInstance implements Closeable {
     public static String removeCssAndJs(String html) {
         Document doc = Jsoup.parse(html);
 
+        doc.outputSettings().prettyPrint(false);
         doc.select("style, script, link[rel~=(?i)stylesheet]").remove();
         doc.select("[style]").removeAttr("style");
 
@@ -78,6 +79,11 @@ public class BrowserInstance implements Closeable {
     public void waitForPage(UUID uuid, long timeout) {
         final Page page = pages.get(uuid);
         page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(timeout));
+    }
+
+    public byte[] getPageScreenshot(UUID uuid) {
+        final Page page = pages.get(uuid);
+        return page.screenshot();
     }
 
     public Map<String, Map.Entry<String, String>> getPages() {

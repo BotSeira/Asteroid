@@ -8,12 +8,14 @@ import com.microsoft.playwright.Response;
 import io.javalin.http.Context;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import xyz.zcraft.asteroid.browser.BrowserInstance;
 import xyz.zcraft.asteroid.browser.BrowserService;
 import xyz.zcraft.asteroid.config.BrowserConfig;
 import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.network.ErrorCode;
 
+import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
@@ -124,6 +126,15 @@ public class BrowserUseController {
         final BrowserInstance browser = browserService.getBrowser(uuid);
         browser.waitForPage(pageUuid, timeout);
         putResult(ctx, "page_uuid", pageUuid.toString());
+    }
+
+    public void getPageScreenshot(@NotNull Context ctx) {
+        final UUID uuid = UUID.fromString(requirePathString(ctx, "browserUuid"));
+        final UUID pageUuid = UUID.fromString(requirePathString(ctx, "pageUuid"));
+        final BrowserInstance browser = browserService.getBrowser(uuid);
+        final byte[] pageScreenshot = browser.getPageScreenshot(pageUuid);
+        final String base64 = Base64.getEncoder().encodeToString(pageScreenshot);
+        putResult(ctx, base64);
     }
 
     public record NavigateRequest(String url) {

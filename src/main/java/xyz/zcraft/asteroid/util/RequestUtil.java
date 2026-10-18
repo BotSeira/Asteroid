@@ -30,6 +30,9 @@ public class RequestUtil {
             }
         } else {
             data = GSON.toJsonTree(result);
+            if (data.isJsonPrimitive() || data.isJsonArray()) {
+                data = GSON.toJsonTree(Map.of("result", data));
+            }
         }
 
         context.result(new Response(true, "Success", data).toString());

@@ -68,7 +68,8 @@ public class WebServer implements Closeable {
                     .post("/browsers/{browserUuid}/pages/{pageUuid}/navigate", router.browserUseController::navigatePage)
                     .get("/browsers/{browserUuid}/pages/{pageUuid}/get", router.browserUseController::getPageContent)
                     .get("/browsers/{browserUuid}/pages/{pageUuid}/waitfor", router.browserUseController::waitForPage)
-                    .get("/browsers/{browserUuid}/pages/{pageUuid}/eval", router.browserUseController::evalPage)
+                    .post("/browsers/{browserUuid}/pages/{pageUuid}/eval", router.browserUseController::evalPage)
+                    .get("/browsers/{browserUuid}/pages/{pageUuid}/screenshot", router.browserUseController::getPageScreenshot)
                     .get("/browsers/{browserUuid}/pages/{pageUuid}/close", router.browserUseController::closePage)
                     .get("/browsers/{browserUuid}/close", router.browserUseController::closeBrowser)
 
