@@ -21,7 +21,9 @@ public class RequestUtil {
         context.status(200).contentType("application/json");
         JsonElement data;
 
-        if (result instanceof JsonElement) {
+        if (result == null) {
+            data = GSON.toJsonTree(Map.of());
+        } else if (result instanceof JsonElement) {
             data = (JsonElement) result;
             if (data.isJsonArray()) {
                 data = GSON.toJsonTree(Map.of("result", data));

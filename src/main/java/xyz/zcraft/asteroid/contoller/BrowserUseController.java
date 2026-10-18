@@ -71,13 +71,29 @@ public class BrowserUseController {
     public void getPageContent(Context ctx) {
         final UUID uuid = UUID.fromString(requirePathString(ctx, "browserUuid"));
         final UUID pageUuid = UUID.fromString(requirePathString(ctx, "pageUuid"));
+        final boolean purify = optionalBoolean(ctx, "purify", true);
         final BrowserInstance browser = browserService.getBrowser(uuid);
         final String selector = optionalString(ctx, "selector");
         if (selector != null && !selector.isBlank()) {
-            putResult(ctx, "result", browser.getPageContent(pageUuid, selector));
+            putResult(ctx, "result", browser.getPageContent(pageUuid, selector, purify));
         } else {
-            putResult(ctx, "result", browser.getPageContent(pageUuid));
+            putResult(ctx, "result", browser.getPageContent(pageUuid, purify));
         }
+    }
+
+    public void evalPage(Context ctx) {
+        final EvalRequest request = GSON.fromJson(JsonParser.parseString(ctx.body()), EvalRequest.class);
+
+        if (request == null || request.expr() == null) {
+            throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        final UUID uuid = UUID.fromString(requirePathString(ctx, "browserUuid"));
+        final UUID pageUuid = UUID.fromString(requirePathString(ctx, "pageUuid"));
+        final BrowserInstance browser = browserService.getBrowser(uuid);
+        final Object result = browser.pageEval(pageUuid, request.expr());
+
+        putResult(ctx, result);
     }
 
     public void navigatePage(Context ctx) {
@@ -111,5 +127,8 @@ public class BrowserUseController {
     }
 
     public record NavigateRequest(String url) {
+    }
+
+    public record EvalRequest(String expr) {
     }
 }
