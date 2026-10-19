@@ -42,8 +42,8 @@ public class NcmApi {
     }
 
     @NotNull
-    public static List<Song> searchSong(String keywords) {
-        final HttpResponse<String> response = get("/search", Query.create().param("keywords", keywords));
+    public static List<Song> searchSong(String cookie, String keywords) {
+        final HttpResponse<String> response = get("/search", Query.create().param("keywords", keywords), cookie);
         final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
 
         final JsonElement jsonElement = obj.get("result").getAsJsonObject().get("songs");
@@ -64,11 +64,11 @@ public class NcmApi {
     }
 
     @NotNull
-    public static List<Song> getPlaylistSongs(long playlistId, @Nullable Integer limit, @Nullable Integer offset) {
-        final HttpResponse<String> response = get("/playlist/track/all", Query.create()
-                .param("id", playlistId)
-                .param("limit", limit)
-                .param("offset", offset)
+    public static List<Song> getPlaylistSongs(String cookie, long playlistId, @Nullable Integer limit, @Nullable Integer offset) {
+        final HttpResponse<String> response = get(
+                "/playlist/track/all",
+                Query.create().param("id", playlistId).param("limit", limit).param("offset", offset),
+                cookie
         );
 
         final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
@@ -90,9 +90,9 @@ public class NcmApi {
         return songs;
     }
 
-    public static Playlist getPlaylistInfo(long playlistId) {
+    public static Playlist getPlaylistInfo(String cookie, long playlistId) {
         try {
-            final HttpResponse<String> response = get("/playlist/detail", Query.create().param("id", playlistId));
+            final HttpResponse<String> response = get("/playlist/detail", Query.create().param("id", playlistId), cookie);
             final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
             final JsonElement jsonElement = obj.get("playlist");
             if (!jsonElement.isJsonObject()) {
@@ -105,9 +105,9 @@ public class NcmApi {
         }
     }
 
-    public static Optional<String> getSongUrl(long id) {
+    public static Optional<String> getSongUrl(String cookie, long id) {
         try {
-            final HttpResponse<String> response = get("/song/url/match", Query.create().param("id", id));
+            final HttpResponse<String> response = get("/song/url/match", Query.create().param("id", id), cookie);
             final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
             return Optional.ofNullable(obj.get("data").getAsString());
         } catch (Exception e) {
@@ -117,9 +117,13 @@ public class NcmApi {
     }
 
     @NotNull
-    public static List<MatchResult> matchSong(int duration, String audioFP) {
+    public static List<MatchResult> matchSong(String cookie, int duration, String audioFP) {
         try {
-            final HttpResponse<String> response = get("/audio/match", Query.create().param("duration", duration).param("audioFP", audioFP));
+            final HttpResponse<String> response = get(
+                    "/audio/match",
+                    Query.create().param("duration", duration).param("audioFP", audioFP),
+                    cookie
+            );
             final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
             final JsonElement jsonElement = obj.get("data").getAsJsonObject().get("result");
             if (!jsonElement.isJsonArray()) {
@@ -159,10 +163,22 @@ public class NcmApi {
         }
     }
 
-    private static HttpResponse<String> get(String path, Query query) {
+    public static String loginAnonymous() {
+        try {
+            final HttpResponse<String> response = get("/register/anonimous", Query.create(), null);
+            final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
+            return obj.get("cookie").getAsString();
+        } catch (Exception e) {
+            LOG.error("Error logging in anonymously", e);
+            throw new RuntimeException("Error logging in anonymously", e);
+        }
+    }
+
+    private static HttpResponse<String> get(String path, Query query, String cookie) {
         try {
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + path + query.build()))
+                    .header("Cookie", cookie == null ? "" : cookie)
                     .GET()
                     .build();
 
