@@ -32,3 +32,11 @@ braveSearch:
 
 browser:
   proxy:
+
+cos:
+  secretId: ""
+  secretKey: ""
+  region: ""
+  bucket: ""
+  baseUrl: ""
+  keyPrefix: "seira"

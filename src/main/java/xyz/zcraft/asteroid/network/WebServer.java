@@ -95,9 +95,9 @@ public class WebServer implements Closeable {
                         }
 
                         if (e.getWrappedException() != null) {
-                            LOG.error("API error occurred while processing request: {} - {}", ctx.queryString(), e.getMessage(), e.getWrappedException());
+                            LOG.error("API error occurred while processing request: {} - {}", ctx.queryString(), e.toString(), e.getWrappedException());
                         } else {
-                            LOG.error("API error occurred while processing request: {} - {}", ctx.queryString(), e.getMessage());
+                            LOG.error("API error occurred while processing request: {} - {}", ctx.queryString(), e.toString());
                         }
                     })
                     .exception(Exception.class, (e, ctx) -> {

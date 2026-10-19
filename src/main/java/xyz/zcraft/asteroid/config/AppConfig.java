@@ -5,6 +5,7 @@ public record AppConfig(
         WebserverConfig webserver,
         NcmConfig ncm,
         BraveSearchConfig braveSearch,
-        BrowserConfig browser
+        BrowserConfig browser,
+        CosConfig cos
 ) {
 }

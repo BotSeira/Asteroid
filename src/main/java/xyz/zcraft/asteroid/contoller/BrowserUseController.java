@@ -14,6 +14,8 @@ import xyz.zcraft.asteroid.browser.BrowserService;
 import xyz.zcraft.asteroid.config.BrowserConfig;
 import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.network.ErrorCode;
+import xyz.zcraft.asteroid.util.CosService;
+import xyz.zcraft.asteroid.util.UploadedImage;
 
 import java.util.Base64;
 import java.util.Map;
@@ -25,9 +27,11 @@ public class BrowserUseController {
     private final static Logger LOG = LogManager.getLogger(BrowserUseController.class);
     private final static Gson GSON = new Gson();
     private final BrowserService browserService;
+    private final CosService cosService;
 
-    public BrowserUseController(BrowserConfig config) {
+    public BrowserUseController(BrowserConfig config, CosService cos) {
         this.browserService = new BrowserService(config.proxy());
+        this.cosService = cos;
     }
 
     public void createBrowser(Context ctx) {
@@ -131,10 +135,17 @@ public class BrowserUseController {
     public void getPageScreenshot(@NotNull Context ctx) {
         final UUID uuid = UUID.fromString(requirePathString(ctx, "browserUuid"));
         final UUID pageUuid = UUID.fromString(requirePathString(ctx, "pageUuid"));
+        final boolean url = optionalBoolean(ctx, "url", false);
         final BrowserInstance browser = browserService.getBrowser(uuid);
         final byte[] pageScreenshot = browser.getPageScreenshot(pageUuid);
-        final String base64 = Base64.getEncoder().encodeToString(pageScreenshot);
-        putResult(ctx, base64);
+
+        if (url) {
+            final UploadedImage uploadedImage = cosService.uploadImage(pageScreenshot);
+            putResult(ctx, Map.of("url", uploadedImage.url()));
+        } else {
+            final String base64 = Base64.getEncoder().encodeToString(pageScreenshot);
+            putResult(ctx, base64);
+        }
     }
 
     public record NavigateRequest(String url) {
