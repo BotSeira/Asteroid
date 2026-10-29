@@ -29,7 +29,7 @@ public class GachaController {
 
         final UUID page = browser.createPage(GachaApi.getProfilePageUrl(username));
         browser.waitForPage(page, 10 * 1000);
-        browser.pageEval(page, "document.getElementsByClassName('pf-country')[0].remove()");
+        browser.pageEval(page, "document.querySelector('.pf-country')?.remove()");
         final byte[] screenshot = browser.getScreenshot(page, ".pf");
         browser.closePage(page);
 
