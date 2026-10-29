@@ -1,6 +1,9 @@
 package xyz.zcraft.asteroid.browser;
 
-import com.microsoft.playwright.*;
+import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Response;
 import com.microsoft.playwright.options.LoadState;
 import lombok.Getter;
 import org.jsoup.Jsoup;
@@ -11,37 +14,21 @@ import org.jsoup.nodes.Element;
 import java.io.Closeable;
 import java.util.*;
 
-public class BrowserInstance implements Closeable {
+public class BrowserInstance implements AutoCloseable {
     private final BrowserContext context;
     private final Browser browser;
     private final HashMap<UUID, Page> pages = new HashMap<>();
     @Getter
     private final UUID uuid;
 
-    public BrowserInstance(Browser browser) {
+    @Getter
+    private final boolean keepAlive;
+
+    public BrowserInstance(Browser browser, boolean keepAlive) {
         this.browser = browser;
         context = browser.newContext(new Browser.NewContextOptions());
         this.uuid = UUID.randomUUID();
-    }
-
-    public UUID createPage() {
-        final UUID uuid = UUID.randomUUID();
-        pages.put(uuid, context.newPage());
-        return uuid;
-    }
-
-    public Response navigatePage(UUID uuid, String url) {
-        final Page page = pages.get(uuid);
-        return page.navigate(url);
-    }
-
-    public String getPageContent(UUID uuid, boolean removeCssAndJs) {
-        final Page page = pages.get(uuid);
-        String content = page.content();
-        if (removeCssAndJs) {
-            content = removeCssAndJs(content);
-        }
-        return content;
+        this.keepAlive = keepAlive;
     }
 
     public static String removeCssAndJs(String html) {
@@ -60,6 +47,32 @@ public class BrowserInstance implements Closeable {
         }
 
         return doc.outerHtml();
+    }
+
+    public UUID createPage() {
+        final UUID uuid = UUID.randomUUID();
+        pages.put(uuid, context.newPage());
+        return uuid;
+    }
+
+    public UUID createPage(String url) {
+        final UUID page = createPage();
+        navigatePage(page, url);
+        return page;
+    }
+
+    public Response navigatePage(UUID uuid, String url) {
+        final Page page = pages.get(uuid);
+        return page.navigate(url);
+    }
+
+    public String getPageContent(UUID uuid, boolean removeCssAndJs) {
+        final Page page = pages.get(uuid);
+        String content = page.content();
+        if (removeCssAndJs) {
+            content = removeCssAndJs(content);
+        }
+        return content;
     }
 
     public Object pageEval(UUID uuid, String expression) {
@@ -84,6 +97,11 @@ public class BrowserInstance implements Closeable {
     public byte[] getPageScreenshot(UUID uuid) {
         final Page page = pages.get(uuid);
         return page.screenshot();
+    }
+
+    public byte[] getScreenshot(UUID uuid, String selector) {
+        final Page page = pages.get(uuid);
+        return page.locator(selector).screenshot();
     }
 
     public Map<String, Map.Entry<String, String>> getPages() {

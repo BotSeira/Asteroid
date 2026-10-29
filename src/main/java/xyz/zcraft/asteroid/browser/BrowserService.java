@@ -21,6 +21,10 @@ public class BrowserService {
     }
 
     public BrowserInstance createBrowser() {
+        return createBrowser(false);
+    }
+
+    public BrowserInstance createBrowser(boolean keepAlive) {
         final BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
                 .setHeadless(true);
 
@@ -30,11 +34,13 @@ public class BrowserService {
 
         final Browser browser = playwright.chromium().launch(launchOptions);
 
-        final BrowserInstance browserInstance = new BrowserInstance(browser);
+        final BrowserInstance browserInstance = new BrowserInstance(browser, keepAlive);
 
         browsers.put(browserInstance.getUuid(), browserInstance);
 
-        resetCleanups(browserInstance.getUuid());
+        if (!keepAlive) {
+            resetCleanups(browserInstance.getUuid());
+        }
 
         return browserInstance;
     }
@@ -45,6 +51,10 @@ public class BrowserService {
 
             if (remove != null) {
                 remove.cancel(true);
+            }
+
+            if (browsers.get(uuid) == null) {
+                return;
             }
 
             final ScheduledFuture<?> schedule = scheduler.schedule(() -> {

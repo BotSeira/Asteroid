@@ -1,0 +1,47 @@
+package xyz.zcraft.asteroid.contoller;
+
+import com.google.gson.Gson;
+import io.javalin.http.Context;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import xyz.zcraft.asteroid.browser.BrowserInstance;
+import xyz.zcraft.asteroid.browser.BrowserService;
+import xyz.zcraft.asteroid.gacha.GachaApi;
+import xyz.zcraft.asteroid.gacha.data.Own;
+
+import java.util.List;
+import java.util.UUID;
+
+import static xyz.zcraft.asteroid.util.RequestUtil.*;
+
+public class GachaController {
+    private static final Logger LOG = LogManager.getLogger(GachaController.class);
+    private static final Gson GSON = new Gson();
+
+    private final BrowserInstance browser;
+
+    public GachaController(BrowserService browserService) {
+        this.browser = browserService.createBrowser(true);
+    }
+
+    public void getUserProfile(Context ctx) {
+        final String username = requirePathString(ctx, "username");
+
+        final UUID page = browser.createPage(GachaApi.getProfilePageUrl(username));
+        browser.waitForPage(page, 10 * 1000);
+        browser.pageEval(page, "document.getElementsByClassName('pf-country')[0].remove()");
+        final byte[] screenshot = browser.getScreenshot(page, ".pf");
+        browser.closePage(page);
+
+        ctx.status(200).contentType("image/png").result(screenshot);
+    }
+
+    public void getPlayerCardOwners(Context ctx) {
+        final long uid = requirePathLong(ctx, "uid");
+
+        final List<Own> owners = GachaApi.getUserCardOwners(uid);
+
+        putResult(ctx, owners);
+    }
+}
+

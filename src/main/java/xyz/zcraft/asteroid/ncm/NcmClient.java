@@ -1,6 +1,8 @@
 package xyz.zcraft.asteroid.ncm;
 
 import jakarta.annotation.Nullable;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import xyz.zcraft.asteroid.ncm.data.MatchResult;
 import xyz.zcraft.asteroid.ncm.data.Playlist;
 import xyz.zcraft.asteroid.ncm.data.Song;
@@ -10,15 +12,25 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class NcmClient {
+    private static final Logger LOG = LogManager.getLogger(NcmClient.class);
     private final AtomicReference<String> cookie = new AtomicReference<>(null);
 
     private NcmClient(String cookie) {
         this.cookie.set(cookie);
     }
 
-    public static NcmClient create() {
+    public static NcmClient createBlocking() {
         final String s = NcmApi.loginAnonymous();
         return new NcmClient(s);
+    }
+
+    public static NcmClient create() {
+        final NcmClient ncmClient = new NcmClient(null);
+        new Thread(() -> {
+            ncmClient.refreshCookie();
+            LOG.info("Cookie refreshed");
+        }).start();
+        return ncmClient;
     }
 
     public List<Song> searchSong(String keywords) {

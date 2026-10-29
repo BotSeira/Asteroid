@@ -105,6 +105,16 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf</artifactId>
+            <version>3.1.5.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ZayrexDev</groupId>
+            <artifactId>ImageRenderer</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.jline</groupId>
             <artifactId>jline</artifactId>
             <version>4.3.1</version>

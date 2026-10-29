@@ -1,0 +1,78 @@
+package xyz.zcraft.asteroid.gacha;
+
+import com.google.gson.*;
+import lombok.Getter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import xyz.zcraft.asteroid.gacha.data.Own;
+import xyz.zcraft.asteroid.util.Query;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+
+public class GachaApi {
+    private final static Logger LOG = LogManager.getLogger(GachaApi.class);
+    private final static Gson GSON = new Gson();
+    private final static HttpClient CLIENT = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build();
+
+    @Getter
+    private final static String baseUrl = "https://osugacha.com";
+
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(CLIENT::close));
+    }
+
+//    @NotNull
+//    public static List<Song> getUserProfile(String username) {
+//        final HttpResponse<String> response = get("/players/" + username + "owners");
+//        final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
+//
+//    }
+
+    public static List<Own> getUserCardOwners(long uid) {
+        final HttpResponse<String> response = get("/api/players/" + uid + "/owners");
+        final JsonArray array = JsonParser.parseString(response.body()).getAsJsonArray();
+        List<Own> result = new ArrayList<>(array.size());
+
+        for (JsonElement elem : array) {
+            result.add(GSON.fromJson(elem, Own.class));
+        }
+
+        return result;
+    }
+
+
+    public static String getProfilePageUrl(String username) {
+        return baseUrl + "/u/" + username;
+    }
+
+    private static HttpResponse<String> get(String path) {
+        return get(path, Query.create());
+    }
+
+    private static HttpResponse<String> get(String path, Query query) {
+        try {
+            final HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + path + query.build()))
+                    .GET()
+                    .build();
+
+            final HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                LOG.warn("Unexpected status code {} when GET {}", response.statusCode(), path);
+            }
+
+            return response;
+        } catch (IOException | InterruptedException e) {
+            LOG.error("Failed to GET {}", path, e);
+            throw new RuntimeException(e);
+        }
+    }
+}

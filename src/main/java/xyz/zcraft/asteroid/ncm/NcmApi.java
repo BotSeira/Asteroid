@@ -12,17 +12,15 @@ import xyz.zcraft.asteroid.ncm.data.MatchResult;
 import xyz.zcraft.asteroid.ncm.data.Playlist;
 import xyz.zcraft.asteroid.ncm.data.Song;
 import xyz.zcraft.asteroid.network.ErrorCode;
+import xyz.zcraft.asteroid.util.Query;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -192,33 +190,6 @@ public class NcmApi {
         } catch (IOException | InterruptedException e) {
             LOG.error("Failed to GET {}", path, e);
             throw new RuntimeException(e);
-        }
-    }
-
-    private static class Query {
-        private final HashMap<String, String> params = new HashMap<>();
-
-        public static Query create() {
-            return new Query();
-        }
-
-        public Query param(String key, String value) {
-            params.put(key, URLEncoder.encode(value, StandardCharsets.UTF_8));
-            return this;
-        }
-
-        public Query param(String key, @Nullable Object value) {
-            if (value != null) {
-                params.put(key, URLEncoder.encode(value.toString(), StandardCharsets.UTF_8));
-            }
-            return this;
-        }
-
-        public String build() {
-            StringBuilder builder = new StringBuilder("?");
-            params.forEach((key, value) -> builder.append(key).append("=").append(value).append("&"));
-            builder.deleteCharAt(builder.length() - 1);
-            return builder.toString();
         }
     }
 }

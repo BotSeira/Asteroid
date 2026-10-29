@@ -53,6 +53,7 @@ public class WebServer implements Closeable {
             });
 
             cfg.routes
+                    .post("/templates/{templateName}/render", router.templateController::render)
                     .get("/minecraft/servers/{server}/status", router.minecraftController::serverStatus)
 
                     .get("/ncm/songs/search", router.ncmController::searchSong)
@@ -73,6 +74,9 @@ public class WebServer implements Closeable {
                     .get("/browsers/{browserUuid}/pages/{pageUuid}/screenshot", router.browserUseController::getPageScreenshot)
                     .get("/browsers/{browserUuid}/pages/{pageUuid}/close", router.browserUseController::closePage)
                     .get("/browsers/{browserUuid}/close", router.browserUseController::closeBrowser)
+
+                    .get("/gacha/users/{username}/profile", router.gachaController::getUserProfile)
+                    .get("/gacha/players/{uid}/owners", router.gachaController::getPlayerCardOwners)
 
                     .get("/nbnhhsh", router.miscController::nbnhhsh)
 
@@ -120,6 +124,7 @@ public class WebServer implements Closeable {
     public void close() {
         if (closed.compareAndSet(false, true)) {
             app.stop();
+            router.templateController.close();
         }
     }
 }

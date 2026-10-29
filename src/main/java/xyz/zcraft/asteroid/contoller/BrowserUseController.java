@@ -11,7 +11,6 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import xyz.zcraft.asteroid.browser.BrowserInstance;
 import xyz.zcraft.asteroid.browser.BrowserService;
-import xyz.zcraft.asteroid.config.BrowserConfig;
 import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.network.ErrorCode;
 import xyz.zcraft.asteroid.util.CosService;
@@ -29,8 +28,8 @@ public class BrowserUseController {
     private final BrowserService browserService;
     private final CosService cosService;
 
-    public BrowserUseController(BrowserConfig config, CosService cos) {
-        this.browserService = new BrowserService(config.proxy());
+    public BrowserUseController(BrowserService browserService, CosService cos) {
+        this.browserService = browserService;
         this.cosService = cos;
     }
 
@@ -136,8 +135,11 @@ public class BrowserUseController {
         final UUID uuid = UUID.fromString(requirePathString(ctx, "browserUuid"));
         final UUID pageUuid = UUID.fromString(requirePathString(ctx, "pageUuid"));
         final boolean url = optionalBoolean(ctx, "url", false);
+        final String selector = optionalString(ctx, "selector");
         final BrowserInstance browser = browserService.getBrowser(uuid);
-        final byte[] pageScreenshot = browser.getPageScreenshot(pageUuid);
+        final byte[] pageScreenshot = selector == null
+                ? browser.getPageScreenshot(pageUuid)
+                : browser.getScreenshot(pageUuid, selector);
 
         if (url) {
             final UploadedImage uploadedImage = cosService.uploadImage(pageScreenshot);
