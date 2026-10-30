@@ -141,6 +141,10 @@ public class BrowserUseController {
                 ? browser.getPageScreenshot(pageUuid)
                 : browser.getScreenshot(pageUuid, selector);
 
+        if (pageScreenshot == null) {
+            throw new ApiException(ErrorCode.NOT_FOUND);
+        }
+
         if (url) {
             final UploadedImage uploadedImage = cosService.uploadImage(pageScreenshot);
             putResult(ctx, Map.of("url", uploadedImage.url()));

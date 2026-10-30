@@ -1,9 +1,6 @@
 package xyz.zcraft.asteroid.browser;
 
-import com.microsoft.playwright.Browser;
-import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.Page;
-import com.microsoft.playwright.Response;
+import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.LoadState;
 import lombok.Getter;
 import org.jsoup.Jsoup;
@@ -11,7 +8,6 @@ import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
-import java.io.Closeable;
 import java.util.*;
 
 public class BrowserInstance implements AutoCloseable {
@@ -101,7 +97,9 @@ public class BrowserInstance implements AutoCloseable {
 
     public byte[] getScreenshot(UUID uuid, String selector) {
         final Page page = pages.get(uuid);
-        return page.locator(selector).screenshot();
+        final ElementHandle elem = page.querySelector(selector);
+        if (elem == null) return null;
+        return elem.screenshot();
     }
 
     public Map<String, Map.Entry<String, String>> getPages() {
