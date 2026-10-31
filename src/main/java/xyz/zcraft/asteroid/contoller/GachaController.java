@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import xyz.zcraft.asteroid.browser.BrowserInstance;
 import xyz.zcraft.asteroid.browser.BrowserService;
 import xyz.zcraft.asteroid.gacha.GachaApi;
+import xyz.zcraft.asteroid.gacha.data.GachaPlayer;
 import xyz.zcraft.asteroid.gacha.data.Own;
 
 import java.util.List;
@@ -40,6 +41,17 @@ public class GachaController {
         final long uid = requirePathLong(ctx, "uid");
 
         final List<Own> owners = GachaApi.getUserCardOwners(uid);
+
+        putResult(ctx, owners);
+    }
+
+    public void searchPlayer(Context ctx) {
+        final String q = requireString(ctx, "q");
+        final Integer limit = optionalInteger(ctx, "limit", 10);
+        final Integer offset = optionalInteger(ctx, "offset", 0);
+        final String sort = optionalString(ctx, "sort", "popular");
+
+        final List<GachaPlayer> owners = GachaApi.searchPlayers(q, limit, offset, sort);
 
         putResult(ctx, owners);
     }

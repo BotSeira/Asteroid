@@ -118,6 +118,15 @@ public class RequestUtil {
         }
     }
 
+    public static String optionalString(Context context, String param, String fallback) throws ApiException {
+        final String s = context.queryParam(param);
+        if (s != null && !s.isBlank()) {
+            return URLDecoder.decode(s, StandardCharsets.UTF_8);
+        } else {
+            return fallback;
+        }
+    }
+
     public static long requireLong(Context context, String param) throws ApiException {
         try {
             return Long.parseLong(Objects.requireNonNull(context.queryParam(param)));

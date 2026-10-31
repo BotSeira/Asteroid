@@ -1,9 +1,13 @@
 package xyz.zcraft.asteroid.gacha;
 
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import xyz.zcraft.asteroid.gacha.data.GachaPlayer;
 import xyz.zcraft.asteroid.gacha.data.Own;
 import xyz.zcraft.asteroid.util.Query;
 
@@ -28,13 +32,6 @@ public class GachaApi {
         Runtime.getRuntime().addShutdownHook(new Thread(CLIENT::close));
     }
 
-//    @NotNull
-//    public static List<Song> getUserProfile(String username) {
-//        final HttpResponse<String> response = get("/players/" + username + "owners");
-//        final JsonObject obj = JsonParser.parseString(response.body()).getAsJsonObject();
-//
-//    }
-
     public static List<Own> getUserCardOwners(long uid) {
         final HttpResponse<String> response = get("/api/players/" + uid + "/owners");
         final JsonArray array = JsonParser.parseString(response.body()).getAsJsonArray();
@@ -47,6 +44,23 @@ public class GachaApi {
         return result;
     }
 
+    public static List<GachaPlayer> searchPlayers(String query, int limit, int offset, String sort) {
+        final HttpResponse<String> response = get("/api/players", Query.create()
+                .param("q", query)
+                .param("limit", String.valueOf(limit))
+                .param("offset", String.valueOf(offset))
+                .param("sort", sort)
+        );
+
+        final JsonArray array = JsonParser.parseString(response.body()).getAsJsonObject().get("items").getAsJsonArray();
+        List<GachaPlayer> result = new ArrayList<>(array.size());
+
+        for (JsonElement elem : array) {
+            result.add(GSON.fromJson(elem, GachaPlayer.class));
+        }
+
+        return result;
+    }
 
     public static String getProfilePageUrl(String username) {
         return baseUrl + "/u/" + username;
