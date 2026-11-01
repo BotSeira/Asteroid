@@ -64,6 +64,12 @@
             padding-bottom: 12px
         }
 
+        .candle-note {
+            color: #b0bbcf;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
         svg {
             width: 100%;
             height: 260px
@@ -141,6 +147,7 @@
     </div>
     <div class="chart">
         <div class="chart-title">最低挂单价</div>
+        <div class="candle-note">相邻周期沿用前收盘价开盘，缺失周期不补价</div>
         <svg id="candles" viewBox="0 0 550 260"></svg>
     </div>
     <div class="chart">
@@ -182,6 +189,33 @@
         }[u]);
     }
 
+    function nextBucket(time, s) {
+        const [, n, unit] = s.match(/(\d+)(min|h|d|mo)/), count = Number(n);
+        if (unit === 'mo') {
+            const date = new Date(time);
+            return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + count, 1);
+        }
+        return time + count * ({min: 60000, h: 3600000, d: 86400000}[unit]);
+    }
+
+    function buildCandles(groups, s) {
+        let previous = null;
+        return groups.map(group => {
+            const values = group.rs.map(row => row.lowest).filter(value => Number.isFinite(value) && value >= 0);
+            const candle = {time: group.time, o: null, c: null, h: null, l: null};
+            if (values.length) {
+                // Carry the observed close only across adjacent, nonempty buckets.
+                candle.o = previous && nextBucket(previous.time, s) === group.time ? previous.c : values[0];
+                candle.c = values.at(-1);
+                candle.h = values.reduce((max, value) => Math.max(max, value), candle.o);
+                candle.l = values.reduce((min, value) => Math.min(min, value), candle.o);
+                previous = candle;
+            } else {
+                previous = null;
+            }
+            return candle;
+        });
+    }
     function grouped(s) {
         const m = new Map();
         for (const r of rows) {
@@ -192,7 +226,7 @@
         return [...m].map(([time, rs]) => ({time, rs, last: rs.at(-1)}));
     }
 
-    function plot(id, points, keys, date = true, fitY = false, xTickCount = 5, logY = false) {
+    function plot(id, points, keys, date = true, fitY = false, xTickCount = 5, logY = false, xInset = 0) {
         const svg = document.getElementById(id);
         const valid = points.flatMap(p => keys.map(k => p[k])).filter(v => v != null && Number.isFinite(v) && (!logY || v > 0));
         if (!valid.length) {
@@ -209,7 +243,8 @@
         const min = logY ? logMin - logPadding : fitY ? Math.max(0, dataMin - padding) : 0;
         const max = logY ? logMax + logPadding : fitY ? dataMax + padding : Math.max(dataMax, 1) * 1.08;
         const minX = points[0].time, maxX = points.at(-1).time;
-        const x = t => 55 + (maxX === minX ? 225 : (t - minX) / (maxX - minX) * 465), y = v => 220 - ((logY ? Math.log10(v) : v) - min) / (max - min) * 190;
+        const x = t => 55 + xInset + (maxX === minX ? (465 - 2 * xInset) / 2 : (t - minX) / (maxX - minX) * (465 - 2 * xInset)),
+            y = v => 220 - ((logY ? Math.log10(v) : v) - min) / (max - min) * 190;
         for (let i = 0; i <= 4; i++) {
             const tick = min + (max - min) * i / 4;
             const v = logY ? 10 ** tick : tick;
@@ -254,20 +289,13 @@
         const last = rows.at(-1);
         const groups = grouped(scale);
         line('prices', groups.map(g => ({...g.last, time: g.time})), ['lowest', 'median', 'highest'], true);
-        const candles = groups.map(g => {
-            const vs = g.rs.filter(r => r.lowest != null).map(r => r.lowest);
-            return {
-                time: g.time,
-                o: vs[0],
-                c: vs.at(-1),
-                h: vs.length ? vs.reduce((m, v) => Math.max(m, v), -Infinity) : null,
-                l: vs.length ? vs.reduce((m, v) => Math.min(m, v), Infinity) : null
-            }
-        });
-        const p = plot('candles', candles, ['h', 'l'], true, true);
+        const candles = buildCandles(groups, scale);
+        const p = plot('candles', candles, ['h', 'l'], true, true, undefined, false, 20);
         if (p) for (const c of candles) {
             if (c.h == null) continue;
-            const color = c.c >= c.o ? colors[0] : colors[1], w = Math.max(2, Math.min(12, 400 / candles.length));
+            const color = c.c >= c.o ? colors[0] : colors[1];
+            const spacing = Math.abs(p.x(nextBucket(c.time, scale)) - p.x(c.time));
+            const w = candles.length === 1 ? 28 : Math.min(40, spacing * 0.7);
             el(p.svg, 'line', {x1: p.x(c.time), x2: p.x(c.time), y1: p.y(c.h), y2: p.y(c.l), stroke: color});
             el(p.svg, 'rect', {
                 x: p.x(c.time) - w / 2,
