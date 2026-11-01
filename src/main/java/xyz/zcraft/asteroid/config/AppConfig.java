@@ -6,6 +6,7 @@ public record AppConfig(
         NcmConfig ncm,
         BraveSearchConfig braveSearch,
         BrowserConfig browser,
-        CosConfig cos
+        CosConfig cos,
+        GachaConfig gacha
 ) {
 }

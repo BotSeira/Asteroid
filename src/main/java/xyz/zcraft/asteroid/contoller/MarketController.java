@@ -3,6 +3,7 @@ package xyz.zcraft.asteroid.contoller;
 import io.javalin.http.Context;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
+import xyz.zcraft.asteroid.config.GachaConfig;
 import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.gacha.MarketService;
 import xyz.zcraft.asteroid.gacha.data.MarketSummary;
@@ -10,12 +11,14 @@ import xyz.zcraft.asteroid.network.ErrorCode;
 import xyz.zcraft.image.HtmlRenderer;
 
 public final class MarketController implements AutoCloseable {
-    private final MarketService service = new MarketService();
+    private final MarketService service;
     private final TemplateEngine engine = new TemplateEngine();
     private final HtmlRenderer renderer = new HtmlRenderer(2, 32, 30000, c -> {
     });
 
-    public MarketController() {
+    public MarketController(GachaConfig conf) {
+        this.service = new MarketService(conf);
+
         var resolver = new ClassLoaderTemplateResolver();
         resolver.setPrefix("/template/");
         resolver.setSuffix(".html");

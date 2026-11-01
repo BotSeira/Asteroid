@@ -40,3 +40,6 @@ cos:
   bucket: ""
   baseUrl: ""
   keyPrefix: "seira"
+
+gacha:
+  marketRefreshInterval: 120

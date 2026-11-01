@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import xyz.zcraft.asteroid.config.GachaConfig;
 import xyz.zcraft.asteroid.gacha.data.MarketItem;
 
 import java.util.*;
@@ -27,8 +28,8 @@ public final class MarketService implements AutoCloseable {
 
     private static final Logger LOG = LogManager.getLogger(MarketService.class);
 
-    public MarketService() {
-        long seconds = Long.getLong("asteroid.gacha.market.intervalSeconds", 150);
+    public MarketService(GachaConfig conf) {
+        int seconds = conf.marketRefreshInterval();
         if (seconds < 30) throw new IllegalArgumentException("Market interval must be at least 30 seconds");
         scheduler.scheduleWithFixedDelay(this::collect, 0, seconds, TimeUnit.SECONDS);
     }

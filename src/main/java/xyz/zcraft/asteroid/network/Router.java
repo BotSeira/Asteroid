@@ -19,7 +19,7 @@ public class Router {
     final BraveSearchController braveSearchController;
     final BrowserUseController browserUseController;
     final GachaController gachaController;
-    final MarketController marketController = new MarketController();
+    final MarketController marketController;
     final CosService cos;
     final BrowserService browserService;
     final TemplateController templateController = new TemplateController();
@@ -36,6 +36,7 @@ public class Router {
         this.braveSearchController = new BraveSearchController(conf.braveSearch());
         this.browserUseController = new BrowserUseController(browserService, cos);
         this.gachaController = new GachaController(browserService);
+        this.marketController = new MarketController(conf.gacha());
 
         LOG.info("Router created");
     }
