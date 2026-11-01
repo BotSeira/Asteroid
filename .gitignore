@@ -36,3 +36,4 @@ build/
 test-data
 config.yml
 logs
+/data/

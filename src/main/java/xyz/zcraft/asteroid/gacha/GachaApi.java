@@ -62,6 +62,21 @@ public class GachaApi {
         return result;
     }
 
+    public static com.google.gson.JsonObject getMarketGuide(String item) {
+        return marketJson("/api/market/guide", Query.create().param("itemId", item));
+    }
+
+    public static com.google.gson.JsonObject getMarketListings(int offset) {
+        return marketJson("/api/market/listings", Query.create().param("mode", "bin")
+                .param("kind", "item").param("sort", "newest")
+                .param("limit", "100").param("offset", String.valueOf(offset)));
+    }
+
+    private static com.google.gson.JsonObject marketJson(String path, Query query) {
+        var response = get(path, query);
+        if (response.statusCode() != 200) throw new IllegalStateException("Market HTTP " + response.statusCode());
+        return JsonParser.parseString(response.body()).getAsJsonObject();
+    }
     public static String getProfilePageUrl(String username) {
         return baseUrl + "/u/" + username;
     }
@@ -74,7 +89,7 @@ public class GachaApi {
         try {
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + path + query.build()))
-                    .GET()
+                    .timeout(Duration.ofSeconds(30)).GET()
                     .build();
 
             final HttpResponse<String> response = CLIENT.send(request, HttpResponse.BodyHandlers.ofString());

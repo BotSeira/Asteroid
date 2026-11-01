@@ -19,6 +19,7 @@ public class Router {
     final BraveSearchController braveSearchController;
     final BrowserUseController browserUseController;
     final GachaController gachaController;
+    final MarketController marketController = new MarketController();
     final CosService cos;
     final BrowserService browserService;
     final TemplateController templateController = new TemplateController();

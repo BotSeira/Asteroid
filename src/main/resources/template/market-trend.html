@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>市场行情</title>
+    <style>
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            width: 1200px;
+            padding: 36px;
+            background: #0d1020;
+            color: #f8fafc;
+            font: 16px "Microsoft YaHei UI", sans-serif;
+            font-variant-numeric: tabular-nums
+        }
+
+        .title {
+            font-size: 34px;
+            font-weight: 700;
+            margin: 10px 0
+        }
+
+        .metric, .metric-value, .metric-label {
+            text-align: center;
+        }
+
+        .metric {
+            border-left: #394052 solid 1px;
+            padding: 0 18px;
+        }
+
+        .chart-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 0 0 8px
+        }
+
+        .subtitle, .timestamp {
+            color: #b0bbcf
+        }
+
+
+        .metric-value {
+            display: block;
+            font-size: 27px;
+            font-weight: 700;
+            margin-top: 8px
+        }
+
+        .charts {
+            display: grid;
+            grid-template-columns:1fr 1fr;
+            gap: 28px;
+            margin-top: 28px
+        }
+
+        .chart {
+            min-width: 0;
+            border-bottom: 1px solid #394052;
+            padding-bottom: 12px
+        }
+
+        svg {
+            width: 100%;
+            height: 260px
+        }
+
+        svg text {
+            fill: #b0bbcf;
+            font-size: 11px
+        }
+
+        #empty {
+            padding: 60px 0
+        }
+
+        .subtitle {
+            margin: 16px 0;
+        }
+
+        .timestamp {
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+<div style="border-bottom: 2px solid #f472b6; padding-bottom: 12px; display: flex; align-items: flex-end; gap: 20px;">
+    <div class="title" th:text="${name}">铜回放</div>
+    <div class="subtitle" th:text="'近' + ${scale}">近 3d</div>
+    <div id="metrics"
+         style="display: flex; align-items: end; margin-left: auto;"
+         th:if="${summary != null}">
+        <div class="metric">
+            <div class="metric-label">上架数量</div>
+            <div class="metric-value"
+                 th:text="${summary.listed == null ? '—' : #numbers.formatDecimal(summary.listed, 1, 'COMMA', 0, 'POINT')}">
+                1,234
+            </div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">最低价</div>
+            <div class="metric-value"
+                 th:text="${summary.lowest == null ? '—' : #numbers.formatDecimal(summary.lowest, 1, 'COMMA', summary.lowest.stripTrailingZeros().scale() > 0 ? 2 : 0, 'POINT')}">
+                12,345
+            </div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">中位价</div>
+            <div class="metric-value"
+                 th:text="${summary.median == null ? '—' : #numbers.formatDecimal(summary.median, 1, 'COMMA', summary.median.stripTrailingZeros().scale() > 0 ? 2 : 0, 'POINT')}">
+                12,345
+            </div>
+        </div>
+        <div class="metric">
+            <div class="metric-label">最高价</div>
+            <div class="metric-value"
+                 th:text="${summary.highest == null ? '—' : #numbers.formatDecimal(summary.highest, 1, 'COMMA', summary.highest.stripTrailingZeros().scale() > 0 ? 2 : 0, 'POINT')}">
+                12,345
+            </div>
+        </div>
+        <div class="metric">
+            <div class="metric-label" th:text="${summary.days} + '天成交笔数'">30 天成交</div>
+            <div class="metric-value"
+                 th:text="${summary.sales == null ? '—' : #numbers.formatDecimal(summary.sales, 1, 'COMMA', 0, 'POINT')}">
+                1,234
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="empty" th:if="${summary == null}">暂无数据。</div>
+
+<div class="charts" th:if="${summary != null}">
+    <div class="chart">
+        <div class="chart-title">价格走势</div>
+        <svg id="prices" viewBox="0 0 550 260"></svg>
+    </div>
+    <div class="chart">
+        <div class="chart-title">最低挂单价</div>
+        <svg id="candles" viewBox="0 0 550 260"></svg>
+    </div>
+    <div class="chart">
+        <div class="chart-title">挂单价格分布</div>
+        <svg id="distribution" viewBox="0 0 550 260"></svg>
+    </div>
+    <div class="chart">
+        <div class="chart-title" th:text="${summary.days} + '天成交笔数'">30 天成交笔数</div>
+        <svg id="sales" viewBox="0 0 550 260"></svg>
+    </div>
+</div>
+
+<script th:if="${summary != null}" th:inline="javascript">
+    const rows = JSON.parse(/*[[${history}]]*/ '[]'), scale =/*[[${scale}]]*/ '1d';
+</script>
+<script th:if="${summary != null}" th:inline="none">
+    const ns = 'http://www.w3.org/2000/svg', colors = ['#60a5fa', '#f472b6', '#fbbf24'];
+
+    function el(svg, tag, attrs, text) {
+        const e = document.createElementNS(ns, tag);
+        for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+        if (text !== undefined) e.textContent = text;
+        svg.appendChild(e);
+        return e
+    }
+
+    const fmt = n => Number(n).toLocaleString('en-US', {maximumFractionDigits: 2});
+
+    function bucket(t, s) {
+        const [, n, u] = s.match(/(\d+)(min|h|d|mo)/), count = Number(n);
+        if (u === 'mo') {
+            const d = new Date(t), m = Math.floor((d.getUTCFullYear() * 12 + d.getUTCMonth()) / count) * count;
+            return Date.UTC(Math.floor(m / 12), m % 12, 1)
+        }
+        return Math.floor(t / (count * ({min: 60000, h: 3600000, d: 86400000}[u]))) * count * ({
+            min: 60000,
+            h: 3600000,
+            d: 86400000
+        }[u]);
+    }
+
+    function grouped(s) {
+        const m = new Map();
+        for (const r of rows) {
+            const t = bucket(r.time, s);
+            if (!m.has(t)) m.set(t, []);
+            m.get(t).push(r)
+        }
+        return [...m].map(([time, rs]) => ({time, rs, last: rs.at(-1)}));
+    }
+
+    function plot(id, points, keys, date = true, fitY = false, xTickCount = 5, logY = false) {
+        const svg = document.getElementById(id);
+        const valid = points.flatMap(p => keys.map(k => p[k])).filter(v => v != null && Number.isFinite(v) && (!logY || v > 0));
+        if (!valid.length) {
+            el(svg, 'text', {x: 180, y: 120}, logY ? '暂无有效正价格' : '暂无有效数据');
+            return null
+        }
+        const dataMin = valid.reduce((m, v) => Math.min(m, v), Infinity);
+        const dataMax = valid.reduce((m, v) => Math.max(m, v), -Infinity);
+        // Fit price candles to their actual range; keep padding for flat/single-point data.
+        const padding = dataMax > dataMin ? (dataMax - dataMin) * 0.08 : Math.max(Math.abs(dataMax) * 0.02, 0.01);
+        const logMin = logY ? Math.log10(dataMin) : 0;
+        const logMax = logY ? Math.log10(dataMax) : 0;
+        const logPadding = logMax > logMin ? (logMax - logMin) * 0.08 : 0.1;
+        const min = logY ? logMin - logPadding : fitY ? Math.max(0, dataMin - padding) : 0;
+        const max = logY ? logMax + logPadding : fitY ? dataMax + padding : Math.max(dataMax, 1) * 1.08;
+        const minX = points[0].time, maxX = points.at(-1).time;
+        const x = t => 55 + (maxX === minX ? 225 : (t - minX) / (maxX - minX) * 465), y = v => 220 - ((logY ? Math.log10(v) : v) - min) / (max - min) * 190;
+        for (let i = 0; i <= 4; i++) {
+            const tick = min + (max - min) * i / 4;
+            const v = logY ? 10 ** tick : tick;
+            el(svg, 'line', {x1: 55, x2: 520, y1: y(v), y2: y(v), stroke: '#293044'});
+            el(svg, 'text', {x: 49, y: y(v) + 4, 'text-anchor': 'end'}, logY ? v.toLocaleString('en-US', {maximumSignificantDigits: 4}) : fmt(v))
+        }
+        const label = t => date ? new Date(t).toISOString().slice(5, 16).replace('T', ' ') : fmt(t);
+        const ticks = minX === maxX ? 1 : Math.max(2, Math.floor(xTickCount));
+        for (let i = 0; i < ticks; i++) {
+            const value = ticks === 1 ? minX : minX + (maxX - minX) * i / (ticks - 1);
+            const anchor = ticks === 1 ? 'middle' : i === 0 ? 'start' : i === ticks - 1 ? 'end' : 'middle';
+            el(svg, 'text', {x: x(value), y: 248, 'text-anchor': anchor}, label(value));
+        }
+        return {svg, x, y};
+    }
+
+    function line(id, points, keys, logY = false) {
+        const p = plot(id, points, keys, true, false, undefined, logY);
+        if (!p) return;
+        keys.forEach((key, i) => {
+            let previous = null;
+            points.forEach(r => {
+                if (r[key] == null || !Number.isFinite(r[key]) || (logY && r[key] <= 0)) {
+                    previous = null;
+                    return
+                }
+                if (previous) el(p.svg, 'line', {
+                    x1: p.x(previous.time),
+                    y1: p.y(previous[key]),
+                    x2: p.x(r.time),
+                    y2: p.y(r[key]),
+                    stroke: colors[i],
+                    'stroke-width': 2
+                });
+                el(p.svg, 'circle', {cx: p.x(r.time), cy: p.y(r[key]), r: 2, fill: colors[i]});
+                previous = r
+            })
+        })
+    }
+
+    {
+        const last = rows.at(-1);
+        const groups = grouped(scale);
+        line('prices', groups.map(g => ({...g.last, time: g.time})), ['lowest', 'median', 'highest'], true);
+        const candles = groups.map(g => {
+            const vs = g.rs.filter(r => r.lowest != null).map(r => r.lowest);
+            return {
+                time: g.time,
+                o: vs[0],
+                c: vs.at(-1),
+                h: vs.length ? vs.reduce((m, v) => Math.max(m, v), -Infinity) : null,
+                l: vs.length ? vs.reduce((m, v) => Math.min(m, v), Infinity) : null
+            }
+        });
+        const p = plot('candles', candles, ['h', 'l'], true, true);
+        if (p) for (const c of candles) {
+            if (c.h == null) continue;
+            const color = c.c >= c.o ? colors[0] : colors[1], w = Math.max(2, Math.min(12, 400 / candles.length));
+            el(p.svg, 'line', {x1: p.x(c.time), x2: p.x(c.time), y1: p.y(c.h), y2: p.y(c.l), stroke: color});
+            el(p.svg, 'rect', {
+                x: p.x(c.time) - w / 2,
+                y: Math.min(p.y(c.o), p.y(c.c)),
+                width: w,
+                height: Math.max(1, Math.abs(p.y(c.o) - p.y(c.c))),
+                fill: color
+            })
+        }
+        const dist = last.distribution.map(([price, qty]) => ({time: price, qty}));
+        const d = plot('distribution', dist, ['qty'], false);
+        if (d) for (const r of dist) el(d.svg, 'line', {
+            x1: d.x(r.time),
+            x2: d.x(r.time),
+            y1: 220,
+            y2: d.y(r.qty),
+            stroke: colors[0],
+            'stroke-width': Math.max(2, Math.min(12, 400 / dist.length))
+        });
+        line('sales', grouped('1d').map(g => ({time: g.time, sales: g.last.sales})), ['sales']);
+    }
+</script>
+</body>
+</html>
