@@ -2,9 +2,9 @@ package xyz.zcraft.asteroid.gacha;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xyz.zcraft.asteroid.gacha.data.MarketItem;
-import org.apache.logging.log4j.LogManager;
 
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -34,7 +34,35 @@ public final class MarketService implements AutoCloseable {
     }
 
     public static String getItemName(String id) {
-        return id;
+        return switch (id) {
+            case "replay_1" -> "铜回放";
+            case "replay_2" -> "银回放";
+            case "replay_3" -> "金回放";
+            case "boss_trophy" -> "金奖杯";
+            case "platinum_trophy" -> "白金奖杯";
+            case "diamond_trophy" -> "钻石奖杯";
+            case "emerald_trophy" -> "翡翠奖杯";
+            case "insignia_tank_1" -> "坦克职业徽章 I";
+            case "insignia_tank_2" -> "坦克职业徽章 II";
+            case "insignia_tank_3" -> "坦克职业徽章 III";
+            case "insignia_tank_4" -> "坦克职业徽章 IV";
+            case "insignia_dps_1" -> "DPS职业徽章 I";
+            case "insignia_dps_2" -> "DPS职业徽章 II";
+            case "insignia_dps_3" -> "DPS职业徽章 III";
+            case "insignia_dps_4" -> "DPS职业徽章 IV";
+            case "insignia_support_1" -> "支援职业徽章 I";
+            case "insignia_support_2" -> "支援职业徽章 II";
+            case "insignia_support_3" -> "支援职业徽章 III";
+            case "insignia_support_4" -> "支援职业徽章 IV";
+            case "insignia_cc_1" -> "控制职业徽章 I";
+            case "insignia_cc_2" -> "控制职业徽章 II";
+            case "insignia_cc_3" -> "控制职业徽章 III";
+            case "insignia_cc_4" -> "控制职业徽章 IV";
+            case "fuel" -> "燃料";
+            case "mod_fragment" -> "Mod 碎片";
+            case "banner_key" -> "卡池钥匙";
+            default -> throw new IllegalArgumentException();
+        };
     }
 
     static Map<String, MarketItem> scanListings(java.util.function.IntFunction<JsonObject> fetch) {
