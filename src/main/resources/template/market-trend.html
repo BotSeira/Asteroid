@@ -19,7 +19,7 @@
         }
 
         .title {
-            font-size: 34px;
+            font-size: 40px;
             font-weight: 700;
             margin: 10px 0
         }
@@ -40,7 +40,8 @@
         }
 
         .subtitle {
-            color: #b0bbcf
+            color: #b0bbcf;
+            font-size: 20px;
         }
 
         .metric-value {
@@ -127,7 +128,7 @@
     </div>
 </div>
 
-<div id="empty" th:if="${summary == null}">暂无数据。</div>
+<div id="empty" th:if="${summary == null}">暂无数据</div>
 
 <div class="charts" th:if="${summary != null}">
     <div class="chart">
@@ -136,7 +137,8 @@
     </div>
     <div class="chart">
         <div class="chart-title">最低挂单价</div>
-        <svg id="candles" viewBox="0 0 550 260"></svg>
+        <div th:if="${candleSamples < 10}">请扩大数据范围</div>
+        <svg th:if="${candleSamples >= 10}" id="candles" viewBox="0 0 550 260"></svg>
     </div>
     <div class="chart">
         <div class="chart-title">挂单价格分布</div>
@@ -149,7 +151,9 @@
 </div>
 <!--suppress ThymeleafObsoleteInlineAttributeInspection -->
 <script th:if="${summary != null}" th:inline="javascript">
-    const rows = JSON.parse(/*[[${history}]]*/ '[]'), scale =/*[[${scale}]]*/ '1d';
+        const rows = JSON.parse(/*[[${history}]]*/ '[]'), scale =/*[[${scale}]]*/ '1d';
+    const trendRows = JSON.parse(/*[[${trendRows}]]*/ '[]');
+    const rangeStart = /*[[${rangeStart}]]*/ 0, rangeEnd = /*[[${rangeEnd}]]*/ 0;
 </script>
 <!--suppress ThymeleafObsoleteInlineAttributeInspection -->
 <script th:if="${summary != null}" th:inline="none">
@@ -178,37 +182,22 @@
         }[u]);
     }
 
-    function nextBucket(time, s) {
-        const [, n, unit] = s.match(/(\d+)(min|h|d|mo)/), count = Number(n);
-        if (unit === 'mo') {
-            const date = new Date(time);
-            return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + count, 1);
-        }
-        return time + count * ({min: 60000, h: 3600000, d: 86400000}[unit]);
-    }
-
-    function buildCandles(groups, s) {
-        let previous = null;
-        return groups.map(group => {
-            const values = group.rs.map(row => row.lowest).filter(value => Number.isFinite(value) && value >= 0);
-            const candle = {time: group.time, o: null, c: null, h: null, l: null};
-            if (values.length) {
-                // Carry the observed close only across adjacent, nonempty buckets.
-                candle.o = previous && nextBucket(previous.time, s) === group.time ? previous.c : values[0];
-                candle.c = values.at(-1);
-                candle.h = values.reduce((max, value) => Math.max(max, value), candle.o);
-                candle.l = values.reduce((min, value) => Math.min(min, value), candle.o);
-                previous = candle;
-            } else {
-                previous = null;
-            }
-            return candle;
+    function buildCandles(samples) {
+        const valid = samples.filter(row => Number.isFinite(row.lowest) && row.lowest >= 0);
+        if (valid.length < 10) return [];
+        const count = Math.min(20, valid.length);
+        // Balanced groups of actual observations; never borrow data outside the requested window.
+        return Array.from({length: count}, (_, i) => {
+            const part = valid.slice(Math.floor(i * valid.length / count), Math.floor((i + 1) * valid.length / count));
+            const values = part.map(row => row.lowest);
+            return {time: part[0].time, end: part.at(-1).time, o: values[0], c: values.at(-1),
+                h: values.reduce((a, b) => Math.max(a, b)), l: values.reduce((a, b) => Math.min(a, b))};
         });
     }
     function grouped(s) {
         const m = new Map();
         for (const r of rows) {
-            const t = bucket(r.time, s);
+            const t = bucket(r.time + 8 * 3600000, s) - 8 * 3600000;
             if (!m.has(t)) m.set(t, []);
             m.get(t).push(r)
         }
@@ -231,7 +220,8 @@
         const logPadding = logMax > logMin ? (logMax - logMin) * 0.08 : 0.1;
         const min = logY ? logMin - logPadding : fitY ? Math.max(0, dataMin - padding) : 0;
         const max = logY ? logMax + logPadding : fitY ? dataMax + padding : Math.max(dataMax, 1) * 1.08;
-        const minX = points[0].time, maxX = points.at(-1).time;
+        const isTrend = id === 'prices' || id === 'candles';
+        const minX = isTrend ? rangeStart : points[0].time, maxX = isTrend ? rangeEnd : points.at(-1).time;
         const x = t => 55 + xInset + (maxX === minX ? (465 - 2 * xInset) / 2 : (t - minX) / (maxX - minX) * (465 - 2 * xInset)),
             y = v => 220 - ((logY ? Math.log10(v) : v) - min) / (max - min) * 190;
         for (let i = 0; i <= 4; i++) {
@@ -240,7 +230,7 @@
             el(svg, 'line', {x1: 55, x2: 520, y1: y(v), y2: y(v), stroke: '#293044'});
             el(svg, 'text', {x: 49, y: y(v) + 4, 'text-anchor': 'end'}, logY ? v.toLocaleString('en-US', {maximumSignificantDigits: 4}) : fmt(v))
         }
-        const label = t => date ? new Date(t).toISOString().slice(5, 16).replace('T', ' ') : fmt(t);
+        const label = t => date ? new Date(t + 8 * 3600000).toISOString().slice(5, 16).replace('T', ' ') : fmt(t);
         const ticks = minX === maxX ? 1 : Math.max(2, Math.floor(xTickCount));
         for (let i = 0; i < ticks; i++) {
             const value = ticks === 1 ? minX : minX + (maxX - minX) * i / (ticks - 1);
@@ -276,14 +266,16 @@
 
     {
         const last = rows.at(-1);
-        const groups = grouped(scale);
-        line('prices', groups.map(g => ({...g.last, time: g.time})), ['lowest', 'median', 'highest'], true);
-        const candles = buildCandles(groups, scale);
-        const p = plot('candles', candles, ['h', 'l'], true, true, undefined, false, 20);
-        if (p) for (const c of candles) {
+
+        line('prices', trendRows, ['lowest', 'median', 'highest'], true);
+        const candles = buildCandles(trendRows);
+        const p = candles.length ? plot('candles', candles, ['h', 'l'], true, true, undefined, false, 20) : null;
+        if (p) for (const [index, c] of candles.entries()) {
             if (c.h == null) continue;
             const color = c.c >= c.o ? colors[0] : colors[1];
-            const spacing = Math.abs(p.x(nextBucket(c.time, scale)) - p.x(c.time));
+            const left = index > 0 ? p.x(c.time) - p.x(candles[index - 1].time) : Infinity;
+            const right = index + 1 < candles.length ? p.x(candles[index + 1].time) - p.x(c.time) : Infinity;
+            const spacing = Math.min(left, right);
             const w = candles.length === 1 ? 28 : Math.min(40, spacing * 0.7);
             el(p.svg, 'line', {x1: p.x(c.time), x2: p.x(c.time), y1: p.y(c.h), y2: p.y(c.l), stroke: color});
             el(p.svg, 'rect', {

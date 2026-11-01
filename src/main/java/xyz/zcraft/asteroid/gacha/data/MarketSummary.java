@@ -21,9 +21,14 @@ public record MarketSummary(
                 number(snapshot, "listed"), number(snapshot, "lowest"),
                 number(snapshot, "median"), number(snapshot, "highest"),
                 number(snapshot, "sales"), number(snapshot, "days"),
-                snapshot.get("updatedAt").getAsString(),
-                Instant.ofEpochMilli(snapshot.get("time").getAsLong()).toString()
+                formatTime(Instant.parse(snapshot.get("updatedAt").getAsString())),
+                formatTime(Instant.ofEpochMilli(snapshot.get("time").getAsLong()))
         );
+    }
+
+    private static String formatTime(Instant time) {
+        return java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'UTC+8'")
+                .withZone(java.time.ZoneId.of("Asia/Shanghai")).format(time);
     }
 
     private static BigDecimal number(JsonObject snapshot, String key) {
