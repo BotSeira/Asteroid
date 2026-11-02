@@ -82,7 +82,7 @@ public final class MarketController implements AutoCloseable {
         String scale = validateScale(ctx.queryParam("scale"));
         var end = Instant.now();
         var start = rangeStart(end, scale);
-        var history = service.store.history(id, Math.min(start.toEpochMilli(), end.toEpochMilli() - 366L * 86400000));
+        var history = service.store.history(id, Math.min(start.toEpochMilli(), xyz.zcraft.asteroid.gacha.data.market.MarketTrendSettings.salesSince(end)));
         var trend = MarketTrendData.fromHistory(history, start, end);
         var data = new org.thymeleaf.context.Context();
         data.setVariable("name", GachaMarketService.getItemName(id));

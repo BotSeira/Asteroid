@@ -19,7 +19,7 @@
         }
 
         .title {
-            font-size: 40px;
+            font-size: 48px;
             font-weight: 700;
             margin: 10px 0
         }
@@ -39,9 +39,21 @@
             margin: 0 0 8px
         }
 
+        .chart-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-legend-color {
+            width: 16px;
+            height: 16px;
+        }
+
+
         .subtitle {
             color: #b0bbcf;
-            font-size: 20px;
+            font-size: 28px;
         }
 
         .metric-value {
@@ -127,11 +139,39 @@
 
 <div class="charts" th:if="${summary != null}">
     <div class="chart">
-        <div class="chart-title">价格走势</div>
+        <div style="display: flex; gap: 24px;">
+            <div class="chart-title">价格走势</div>
+            <div class="chart-legend" style="display: flex; gap: 10px; margin-left: auto;">
+                <div class="chart-legend-item">
+                    <div class="chart-legend-color" style="background-color: #60a5fa;"></div>
+                    <div class="chart-legend-label">最低价</div>
+                </div>
+                <div class="chart-legend-item">
+                    <div class="chart-legend-color" style="background-color: #f472b6;"></div>
+                    <div class="chart-legend-label">中位价</div>
+                </div>
+                <div class="chart-legend-item">
+                    <div class="chart-legend-color" style="background-color: #fbbf24;"></div>
+                    <div class="chart-legend-label">最高价</div>
+                </div>
+            </div>
+        </div>
         <div class="chart-canvas" id="prices"></div>
     </div>
     <div class="chart">
-        <div class="chart-title">最低挂单价</div>
+        <div style="display: flex; gap: 24px;">
+            <div class="chart-title">最低挂单价</div>
+            <div class="chart-legend" style="display: flex; gap: 10px; margin-left: auto;">
+                <div class="chart-legend-item">
+                    <div class="chart-legend-color" style="background-color: #60a5fa;"></div>
+                    <div class="chart-legend-label">跌</div>
+                </div>
+                <div class="chart-legend-item">
+                    <div class="chart-legend-color" style="background-color: #f472b6;"></div>
+                    <div class="chart-legend-label">涨</div>
+                </div>
+            </div>
+        </div>
         <div th:if="${candleSamples == 0}">请扩大数据范围</div>
         <div class="chart-canvas" id="candles"></div>
     </div>
@@ -145,15 +185,146 @@
     </div>
 </div>
 <!--suppress JSUnresolvedLibraryURL -->
-<script src="http://asteroid-assets/echarts.js" th:if="${summary != null}"></script>
+<script src="../vendor/echarts/echarts.min.js" th:if="${summary != null}"
+        th:src="'http://asteroid-assets/echarts.js'"></script>
 <!--suppress ThymeleafObsoleteInlineAttributeInspection -->
 <script th:if="${summary != null}" th:inline="javascript">
-    const data = JSON.parse(/*[[${chartData}]]*/ '{}');
+    const data = JSON.parse(/*[[${chartData}]]*/ `{
+      "rangeStart": 1793620800000,
+      "rangeEnd": 1793624400000,
+      "lowest": [
+        [1793620890000,100],
+        [1793621070000,102],
+        [1793621250000,105],
+        [1793621430000,103],
+        [1793621610000,108],
+        [1793621790000,112],
+        [1793621970000,null],
+        [1793622150000,null],
+        [1793622330000,110],
+        [1793622510000,107],
+        [1793622690000,105],
+        [1793622870000,109],
+        [1793623050000,115],
+        [1793623230000,118],
+        [1793623410000,116],
+        [1793623590000,120],
+        [1793623770000,123],
+        [1793623950000,119],
+        [1793624130000,122],
+        [1793624310000,125]
+      ],
+      "median": [
+        [1793620890000,130],
+        [1793621070000,132],
+        [1793621250000,135],
+        [1793621430000,133],
+        [1793621610000,138],
+        [1793621790000,142],
+        [1793621970000,null],
+        [1793622150000,null],
+        [1793622330000,140],
+        [1793622510000,137],
+        [1793622690000,135],
+        [1793622870000,139],
+        [1793623050000,145],
+        [1793623230000,148],
+        [1793623410000,146],
+        [1793623590000,150],
+        [1793623770000,153],
+        [1793623950000,149],
+        [1793624130000,152],
+        [1793624310000,155]
+      ],
+      "highest": [
+        [1793620890000,800],
+        [1793621070000,816],
+        [1793621250000,840],
+        [1793621430000,824],
+        [1793621610000,864],
+        [1793621790000,896],
+        [1793621970000,null],
+        [1793622150000,null],
+        [1793622330000,880],
+        [1793622510000,856],
+        [1793622690000,840],
+        [1793622870000,872],
+        [1793623050000,920],
+        [1793623230000,944],
+        [1793623410000,928],
+        [1793623590000,960],
+        [1793623770000,984],
+        [1793623950000,952],
+        [1793624130000,976],
+        [1793624310000,1000]
+      ],
+      "candles": [
+        [1793620872000,100,103,95,98],
+        [1793621016000,101,106,98,103],
+        [1793621160000,102,105,97,100],
+        [1793621304000,103,108,100,105],
+        [1793621448000,104,107,99,102],
+        [1793621592000,105,110,102,107],
+        [1793621736000,106,109,101,104],
+        [1793621880000,null,null,null,null],
+        [1793622024000,null,null,null,null],
+        [1793622168000,109,114,106,111],
+        [1793622312000,110,113,105,108],
+        [1793622456000,111,116,108,113],
+        [1793622600000,112,115,107,110],
+        [1793622744000,113,118,110,115],
+        [1793622888000,114,117,109,112],
+        [1793623032000,115,120,112,117],
+        [1793623176000,116,119,111,114],
+        [1793623320000,117,122,114,119],
+        [1793623464000,118,121,113,116],
+        [1793623608000,119,124,116,121],
+        [1793623752000,120,123,115,118],
+        [1793623896000,121,126,118,123],
+        [1793624040000,122,125,117,120],
+        [1793624184000,123,128,120,125],
+        [1793624328000,124,127,119,122]
+      ],
+      "distribution": [
+        [121.5,0,121,122],
+        [122.5,50,122,123],
+        [123.5,120,123,124],
+        [124.5,0,124,125],
+        [125.5,450,125,126],
+        [126.5,0,126,127],
+        [127.5,0,127,128],
+        [128.5,200,128,129],
+        [129.5,0,129,130],
+        [130.5,90,130,131],
+        [131.5,0,131,132],
+        [132.5,0,132,133],
+        [133.5,0,133,134],
+        [134.5,0,134,135],
+        [135.5,0,135,136],
+        [136.5,0,136,137],
+        [137.5,0,137,138],
+        [138.5,0,138,139],
+        [139.5,0,139,140],
+        [140.5,25,140,141]
+      ],
+      "sales": [
+        [1793361600000,480],
+        [1793448000000,512],
+        [1793534400000,495],
+        [1793620800000,560]
+      ],
+      "candleSamples": 54,
+      "hasPrices": true,
+      "candleMin": 94,
+      "candleMax": 132,
+      "distributionMin": 121,
+      "distributionMax": 141
+    }`);
 </script>
 <!--suppress ThymeleafObsoleteInlineAttributeInspection -->
 <script th:if="${summary != null}" th:inline="none">
     const timeAxis = {
-        type: 'time', min: data.rangeStart, max: data.rangeEnd, splitNumber: 5,
+        type: 'time', min: data.rangeStart, max: data.rangeEnd, splitNumber: 8,
         axisLabel: {formatter: '{MM}-{dd}\n{HH}:{mm}', hideOverlap: true}
     };
     const lineStyle = {type: 'line', connectNulls: false, symbolSize: 3};
@@ -161,9 +332,25 @@
     const options = {
         prices: {
             title: data.hasPrices ? undefined : emptyTitle('暂无有效价格'),
-            legend: {textStyle: {color: '#b0bbcf'}},
-            xAxis: timeAxis,
-            yAxis: {type: 'log', scale: true},
+            legend: {show: false},
+            xAxis: {
+                ...timeAxis, splitNumber: 8,
+                axisTick: {show: true},
+                splitLine: {show: true, lineStyle: {color: '#293044'}}
+            },
+            yAxis: {
+                type: 'log', scale: true,
+                min: extent => Number.isFinite(extent.min) && extent.min > 0
+                    ? Math.max(Number.MIN_VALUE, extent.min * 0.95) : 1,
+                minorTick: {
+                    show: true,
+                    splitNumber: 5
+                },
+                minorSplitLine: {
+                    show: true,
+                    lineStyle: {color: '#202638'}
+                }
+            },
             series: [
                 {...lineStyle, name: '最低价', data: data.lowest},
                 {...lineStyle, name: '中位价', data: data.median},
@@ -174,7 +361,12 @@
             xAxis: timeAxis,
             yAxis: {type: 'value', min: data.candleMin, max: data.candleMax},
             series: [{
-                type: 'candlestick', data: data.candles, dimensions: ['TIME', 'OPEN', 'HIGH', 'LOW', 'CLOSE'], encode: {x: 0, y: [1, 4, 3, 2]}, barMaxWidth: 30,
+                type: 'candlestick',
+                data: data.candles,
+                dimensions: ['TIME', 'OPEN', 'HIGH', 'LOW', 'CLOSE'],
+                encode: {x: 0, y: [1, 4, 3, 2]},
+                barWidth: 15,
+                barMaxWidth: 18,
                 itemStyle: {color: '#60a5fa', color0: '#f472b6', borderColor: '#60a5fa', borderColor0: '#f472b6'}
             }]
         },
@@ -182,10 +374,10 @@
             title: data.distribution.length ? undefined : emptyTitle('暂无有效数据'),
             xAxis: {
                 type: 'value', name: '单价', nameLocation: 'middle', nameGap: 22,
-                min: extent => Number.isFinite(extent.min) ? Math.max(0, extent.min - 1) : 0
+                min: data.distributionMin, max: data.distributionMax
             },
             yAxis: {type: 'value', name: '数量'},
-            series: [{type: 'bar', data: data.distribution, barMaxWidth: 16}]
+            series: [{type: 'bar', data: data.distribution, encode: {x: 0, y: 1}, barWidth: '95%', barGap: '0%'}]
         },
         sales: {
             title: data.sales.length ? undefined : emptyTitle('暂无有效数据'),
@@ -198,7 +390,7 @@
         const container = document.getElementById(id);
         if (!container) continue;
         echarts.init(container, null, {renderer: 'svg'}).setOption({
-            animation: false, useUTC: true,
+            animation: false, interactive: false, useUTC: true,
             textStyle: {color: '#b0bbcf'}, color: ['#60a5fa', '#f472b6', '#fbbf24'],
             grid: {left: 12, right: 24, top: 40, bottom: 28, containLabel: true},
             ...option,
