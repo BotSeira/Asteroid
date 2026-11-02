@@ -109,7 +109,7 @@ public final class GachaMarketService implements AutoCloseable {
             Map<String, TreeMap<Double, Long>> groups = new HashMap<>();
 
             for (var order : orders.values()) {
-                groups.computeIfAbsent(order.id(), _ -> new TreeMap<>())
+                groups.computeIfAbsent(order.obj().id(), _ -> new TreeMap<>())
                         .merge(MarketOrder.getUnitPrice(order), order.obj().qty(), Long::sum);
             }
 
