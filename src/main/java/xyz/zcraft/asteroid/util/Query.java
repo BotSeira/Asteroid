@@ -13,6 +13,10 @@ public class Query {
         return new Query();
     }
 
+    public static Query of(String key, @Nullable Object value) {
+        return Query.create().param(key, value);
+    }
+
     public Query param(String key, String value) {
         params.put(key, URLEncoder.encode(value, StandardCharsets.UTF_8));
         return this;
@@ -30,5 +34,10 @@ public class Query {
         params.forEach((key, value) -> builder.append(key).append("=").append(value).append("&"));
         builder.deleteCharAt(builder.length() - 1);
         return builder.toString();
+    }
+
+    public Query merge(Query another) {
+        params.putAll(another.params);
+        return this;
     }
 }

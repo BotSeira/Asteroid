@@ -1,22 +1,32 @@
 package xyz.zcraft.asteroid.contoller;
 
 import io.javalin.http.Context;
+import org.jetbrains.annotations.NotNull;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 import xyz.zcraft.asteroid.config.GachaConfig;
 import xyz.zcraft.asteroid.exception.ApiException;
+import xyz.zcraft.asteroid.gacha.GachaApi;
 import xyz.zcraft.asteroid.gacha.GachaMarketService;
-import xyz.zcraft.asteroid.gacha.data.MarketSummary;
+import xyz.zcraft.asteroid.gacha.data.market.Guide;
+import xyz.zcraft.asteroid.gacha.data.market.MarketSummary;
 import xyz.zcraft.asteroid.network.ErrorCode;
 import xyz.zcraft.image.HtmlRenderer;
+
+import static xyz.zcraft.asteroid.util.RequestUtil.putResult;
+import static xyz.zcraft.asteroid.util.RequestUtil.requirePathString;
 
 public final class MarketController implements AutoCloseable {
     private final GachaMarketService service;
     private final TemplateEngine engine = new TemplateEngine();
-    private final HtmlRenderer renderer = new HtmlRenderer(2, 32, 30000, _ -> {});
+    private final HtmlRenderer renderer = new HtmlRenderer(2, 32, 30000, _ -> {
+    });
+
+    private final String apiKey;
 
     public MarketController(GachaConfig conf) {
         this.service = new GachaMarketService(conf);
+        this.apiKey = conf.apiKey();
 
         var resolver = new ClassLoaderTemplateResolver();
         resolver.setPrefix("/template/");
@@ -35,7 +45,7 @@ public final class MarketController implements AutoCloseable {
 
     public static java.time.Instant rangeStart(java.time.Instant end, String scale) {
         var match = java.util.regex.Pattern.compile("([1-9][0-9]{0,3})(min|h|d|mo)").matcher(validateScale(scale));
-        if(!match.matches()) {
+        if (!match.matches()) {
             throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Invalid scale");
         }
         int count = Integer.parseInt(match.group(1));
@@ -48,7 +58,7 @@ public final class MarketController implements AutoCloseable {
         };
     }
 
-    public void trend(Context ctx) {
+    public void itemTrend(Context ctx) {
         String id = ctx.pathParam("item_id");
         if (!GachaMarketService.ITEMS.contains(id))
             throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Unknown market item");
@@ -89,5 +99,13 @@ public final class MarketController implements AutoCloseable {
     public void close() {
         service.close();
         renderer.close();
+    }
+
+    public void playerGuide(@NotNull Context ctx) {
+        final String username = requirePathString(ctx, "username");
+
+        final Guide cardGuide = GachaApi.getCardGuide(apiKey, username);
+
+        putResult(ctx, cardGuide);
     }
 }

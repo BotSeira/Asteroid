@@ -1,14 +1,16 @@
 package xyz.zcraft.asteroid.gacha;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import xyz.zcraft.asteroid.gacha.data.Card;
 import xyz.zcraft.asteroid.gacha.data.GachaPlayer;
+import xyz.zcraft.asteroid.gacha.data.Item;
 import xyz.zcraft.asteroid.gacha.data.Own;
+import xyz.zcraft.asteroid.gacha.data.market.Guide;
+import xyz.zcraft.asteroid.gacha.data.market.MarketOrder;
+import xyz.zcraft.asteroid.gacha.data.market.Sellable;
 import xyz.zcraft.asteroid.util.Query;
 
 import java.io.IOException;
@@ -62,19 +64,77 @@ public class GachaApi {
         return result;
     }
 
-    public static com.google.gson.JsonObject getMarketGuide(String apiKey, String item) {
-        return marketJson(apiKey, "/api/market/guide", Query.create().param("itemId", item));
+    public static Guide getItemGuide(String apiKey, String item) {
+        return getGuide(apiKey, item, Item.class);
     }
 
-    public static com.google.gson.JsonObject getMarketListings(String apiKey, int offset) {
-        return marketJson(apiKey, "/api/market/listings", Query.create().param("mode", "bin")
+    public static Guide getCardGuide(String apiKey, String username) {
+        final List<MarketOrder<Card>> marketOrders = getMarketItemListings(apiKey, 10, 0, "newest", username, Card.class);
+        return marketOrders.stream()
+                .filter(e -> username.equalsIgnoreCase(e.obj().player().username()))
+                .findFirst()
+                .map(MarketOrder::obj)
+                .map(Card::id)
+                .map(id -> getGuide(apiKey, id, Card.class))
+                .orElse(Guide.empty());
+    }
+
+    public static JsonObject getMarketItemListings(String apiKey, int offset) {
+        return getSafe(apiKey, "/api/market/listings", Query.create().param("mode", "bin")
                 .param("kind", "item").param("sort", "newest")
                 .param("limit", "100").param("offset", String.valueOf(offset)));
     }
 
-    private static com.google.gson.JsonObject marketJson(String apiKey, String path, Query query) {
+    public static <T extends Sellable> Guide getGuide(String apiKey, String identifier, Class<T> itemClass) {
+        Query query = Query.create();
+        if (Item.class == itemClass) {
+            query.param("itemId", identifier);
+        } else if (Card.class == itemClass) {
+            query.param("cardId", identifier);
+        } else {
+            throw new IllegalArgumentException("Unsupported item class" + itemClass.getName());
+        }
+
+        return GSON.fromJson(getSafe(apiKey, "/api/market/guide", query), Guide.class);
+    }
+
+    public static <T extends Sellable> List<MarketOrder<T>> getMarketItemListings(
+            String apiKey, int limit, int offset, String sort, String identifier, Class<T> itemClass
+    ) {
+        String kind;
+        Query query = Query.create();
+
+        if (Item.class == itemClass) {
+            kind = "item";
+            if (identifier != null) query.param("itemId", identifier);
+        } else if (Card.class == itemClass) {
+            kind = "card";
+            if (identifier != null) query.param("q", identifier);
+        } else {
+            throw new IllegalArgumentException("Unsupported item class" + itemClass.getName());
+        }
+
+        final JsonObject result = getSafe(apiKey, "/api/market/listings", Query.create()
+                .param("mode", "bin")
+                .param("kind", kind)
+                .param("sort", sort)
+                .param("limit", limit)
+                .param("offset", offset)
+                .merge(query)
+        );
+
+        final JsonArray itemsArr = result.getAsJsonArray("items");
+
+        List<MarketOrder<T>> marketOrders = new ArrayList<>();
+        for (JsonElement elem : itemsArr) {
+            marketOrders.add(MarketOrder.parse(elem, itemClass));
+        }
+        return marketOrders;
+    }
+
+    private static JsonObject getSafe(String apiKey, String path, Query query) {
         var response = get(apiKey, path, query);
-        if (response.statusCode() != 200) throw new IllegalStateException("Market HTTP " + response.statusCode());
+        if (response.statusCode() != 200) throw new IllegalStateException("HTTP " + response.statusCode());
         return JsonParser.parseString(response.body()).getAsJsonObject();
     }
 

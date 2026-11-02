@@ -1,5 +1,7 @@
 package xyz.zcraft.asteroid.gacha.data;
 
+import xyz.zcraft.asteroid.gacha.data.market.Sellable;
+
 import java.util.List;
 
 public record Card(
@@ -24,7 +26,7 @@ public record Card(
         long popularityAtMint,
         long rarityPopularity,
         long rulesetVersion,
-        Object mintedAt,
-        Object owner,
-        Object player) {
+        String mintedAt,
+        GachaUser owner,
+        GachaPlayer player) implements Sellable {
 }

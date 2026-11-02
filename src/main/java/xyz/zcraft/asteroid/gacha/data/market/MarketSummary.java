@@ -1,4 +1,4 @@
-package xyz.zcraft.asteroid.gacha.data;
+package xyz.zcraft.asteroid.gacha.data.market;
 
 import com.google.gson.JsonObject;
 

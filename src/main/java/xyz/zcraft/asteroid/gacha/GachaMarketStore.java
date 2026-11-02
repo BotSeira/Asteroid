@@ -1,8 +1,9 @@
 package xyz.zcraft.asteroid.gacha;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import xyz.zcraft.asteroid.gacha.data.market.Guide;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,11 +36,13 @@ public final class GachaMarketStore {
         return c;
     }
 
-    public void save(String item, JsonObject guide, JsonArray distribution) {
+    private static final Gson GSON = new Gson();
+
+    public void save(String item, Guide guide, JsonArray distribution) {
         try (var c = open(); var s = c.prepareStatement("INSERT INTO market_snapshot VALUES(?,?,?,?)")) {
             s.setString(1, item);
             s.setLong(2, System.currentTimeMillis());
-            s.setString(3, guide.toString());
+            s.setString(3, GSON.toJson(guide));
             s.setString(4, distribution.toString());
             s.executeUpdate();
         } catch (SQLException e) {

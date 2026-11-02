@@ -5,12 +5,14 @@ import com.google.gson.JsonObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xyz.zcraft.asteroid.config.GachaConfig;
-import xyz.zcraft.asteroid.gacha.data.MarketItem;
+import xyz.zcraft.asteroid.gacha.data.Item;
+import xyz.zcraft.asteroid.gacha.data.market.MarketOrder;
 
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.IntFunction;
 
 public final class GachaMarketService implements AutoCloseable {
     public static final Set<String> ITEMS = Set.of(
@@ -67,12 +69,12 @@ public final class GachaMarketService implements AutoCloseable {
         };
     }
 
-    static Map<String, MarketItem> scanListings(java.util.function.IntFunction<JsonObject> fetch) {
+    static Map<String, MarketOrder<Item>> scanItemListings(IntFunction<JsonObject> fetch) {
         final int pageSize = 100;
         final int stride = 90;
         final int maxPages = 1114;
 
-        Map<String, MarketItem> orders = new LinkedHashMap<>();
+        Map<String, MarketOrder<Item>> orders = new LinkedHashMap<>();
         int budget = maxPages;
 
         for (int pageIndex = 0; pageIndex < budget; pageIndex++) {
@@ -91,8 +93,8 @@ public final class GachaMarketService implements AutoCloseable {
                 budget = Math.min(maxPages, (total + stride - 1) / stride + 2);
             }
             for (var entry : items) {
-                var order = MarketItem.fromJson(entry.getAsJsonObject());
-                orders.put(order.orderId(), order);
+                var order = MarketOrder.parse(entry.getAsJsonObject(), Item.class);
+                orders.put(order.id(), order);
             }
 
             if (items.size() < pageSize) return orders;
@@ -103,21 +105,18 @@ public final class GachaMarketService implements AutoCloseable {
     private void collect() {
         LOG.info("Collecting gacha market...");
         try {
-            Map<String, MarketItem> orders = scanListings((i) -> GachaApi.getMarketListings(apiKey, i));
+            Map<String, MarketOrder<Item>> orders = scanItemListings((i) -> GachaApi.getMarketItemListings(apiKey, i));
             Map<String, TreeMap<Double, Long>> groups = new HashMap<>();
 
             for (var order : orders.values()) {
-                groups.computeIfAbsent(order.itemId(), _ -> new TreeMap<>())
-                        .merge(order.unitPrice(), order.quantity(), Long::sum);
+                groups.computeIfAbsent(order.id(), _ -> new TreeMap<>())
+                        .merge(MarketOrder.getUnitPrice(order), order.obj().qty(), Long::sum);
             }
 
             for (String id : ITEMS) {
                 if (Thread.currentThread().isInterrupted()) return;
                 try {
-                    var guide = GachaApi.getMarketGuide(apiKey, id);
-                    for (String key : List.of("listed", "sales", "days", "updatedAt"))
-                        if (!guide.has(key) || guide.get(key).isJsonNull())
-                            throw new IllegalStateException("Incomplete guide");
+                    var guide = GachaApi.getItemGuide(apiKey, id);
                     var distribution = new JsonArray();
                     groups.getOrDefault(id, new TreeMap<>()).forEach((price, qty) -> {
                         var point = new JsonArray();
