@@ -138,7 +138,7 @@
     <div class="chart">
         <div class="chart-title">最低挂单价</div>
         <div th:if="${candleSamples < 10}">请扩大数据范围</div>
-        <svg th:if="${candleSamples >= 10}" id="candles" viewBox="0 0 550 260"></svg>
+        <svg id="candles" th:if="${candleSamples >= 10}" viewBox="0 0 550 260"></svg>
     </div>
     <div class="chart">
         <div class="chart-title">挂单价格分布</div>
@@ -151,7 +151,7 @@
 </div>
 <!--suppress ThymeleafObsoleteInlineAttributeInspection -->
 <script th:if="${summary != null}" th:inline="javascript">
-        const rows = JSON.parse(/*[[${history}]]*/ '[]'), scale =/*[[${scale}]]*/ '1d';
+    const rows = JSON.parse(/*[[${history}]]*/ '[]'), scale =/*[[${scale}]]*/ '1d';
     const trendRows = JSON.parse(/*[[${trendRows}]]*/ '[]');
     const rangeStart = /*[[${rangeStart}]]*/ 0, rangeEnd = /*[[${rangeEnd}]]*/ 0;
 </script>
@@ -190,10 +190,13 @@
         return Array.from({length: count}, (_, i) => {
             const part = valid.slice(Math.floor(i * valid.length / count), Math.floor((i + 1) * valid.length / count));
             const values = part.map(row => row.lowest);
-            return {time: part[0].time, end: part.at(-1).time, o: values[0], c: values.at(-1),
-                h: values.reduce((a, b) => Math.max(a, b)), l: values.reduce((a, b) => Math.min(a, b))};
+            return {
+                time: part[0].time, end: part.at(-1).time, o: values[0], c: values.at(-1),
+                h: values.reduce((a, b) => Math.max(a, b)), l: values.reduce((a, b) => Math.min(a, b))
+            };
         });
     }
+
     function grouped(s) {
         const m = new Map();
         for (const r of rows) {
@@ -228,7 +231,11 @@
             const tick = min + (max - min) * i / 4;
             const v = logY ? 10 ** tick : tick;
             el(svg, 'line', {x1: 55, x2: 520, y1: y(v), y2: y(v), stroke: '#293044'});
-            el(svg, 'text', {x: 49, y: y(v) + 4, 'text-anchor': 'end'}, logY ? v.toLocaleString('en-US', {maximumSignificantDigits: 4}) : fmt(v))
+            el(svg, 'text', {
+                x: 49,
+                y: y(v) + 4,
+                'text-anchor': 'end'
+            }, logY ? v.toLocaleString('en-US', {maximumSignificantDigits: 4}) : fmt(v))
         }
         const label = t => date ? new Date(t + 8 * 3600000).toISOString().slice(5, 16).replace('T', ' ') : fmt(t);
         const ticks = minX === maxX ? 1 : Math.max(2, Math.floor(xTickCount));

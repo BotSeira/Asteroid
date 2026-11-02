@@ -18,14 +18,14 @@ public class MinecraftServerProbeTest {
             System.out.println("Testing server probe for " + server);
             final MinecraftServerProbe.Result probe = MinecraftServerProbe.probe(server);
             System.out.printf("""
-                        - Host: %s
-                        - Port: %s
-                        - Latency: %d ms
-                        - Status:
-                            - Version: %s
-                            - Players: %s / %s
-                            - Description: %s
-                    %n""",
+                                - Host: %s
+                                - Port: %s
+                                - Latency: %d ms
+                                - Status:
+                                    - Version: %s
+                                    - Players: %s / %s
+                                    - Description: %s
+                            %n""",
                     probe.host(),
                     probe.port(),
                     probe.latencyMs(),

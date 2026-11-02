@@ -130,7 +130,7 @@ public class MinecraftServerProbe {
         out.flush();
     }
 
-    private static ServerAddress resolveMinecraftAddress(String host) throws IOException {
+    private static ServerAddress resolveMinecraftAddress(String host) {
         String srvName = "_minecraft._tcp." + host;
 
         Hashtable<String, String> env = new Hashtable<>();
@@ -169,12 +169,6 @@ public class MinecraftServerProbe {
         } catch (Exception e) {
             return new ServerAddress(host, 25565);
         }
-    }
-
-    private record ServerAddress(
-            String connectHost,
-            int port
-    ) {
     }
 
     private static void writeString(OutputStream out, String value) throws IOException {
@@ -221,6 +215,12 @@ public class MinecraftServerProbe {
         }
 
         return value;
+    }
+
+    private record ServerAddress(
+            String connectHost,
+            int port
+    ) {
     }
 
     public record Result(

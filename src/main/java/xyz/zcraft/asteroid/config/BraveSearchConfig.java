@@ -8,5 +8,6 @@ public record BraveSearchConfig(
             boolean enabled,
             String host,
             int port
-    ){}
+    ) {
+    }
 }

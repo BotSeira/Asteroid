@@ -1,36 +1,41 @@
 package xyz.zcraft.asteroid.contoller;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.microsoft.playwright.Route;
-import io.javalin.http.*;
+import io.javalin.http.Context;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.templateresolver.FileTemplateResolver;
-import xyz.zcraft.image.HtmlRenderer;
 import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.network.ErrorCode;
-import com.google.gson.reflect.TypeToken;
+import xyz.zcraft.image.HtmlRenderer;
+
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
-import java.nio.file.*;
-import java.util.Map;
 
-/** Renders operator-installed templates with caller-provided data. */
+/**
+ * Renders operator-installed templates with caller-provided data.
+ */
 public final class TemplateController implements AutoCloseable {
     private final Path templates = Path.of("templates").toAbsolutePath().normalize();
     private final TemplateEngine engine = new TemplateEngine();
     private final HtmlRenderer renderer;
+
     public TemplateController() {
         FileTemplateResolver resolver = new FileTemplateResolver();
-        resolver.setPrefix(templates.toString() + "/");
+        resolver.setPrefix(templates + "/");
         resolver.setSuffix(".html");
         resolver.setTemplateMode("HTML");
         resolver.setCacheable(false);
         engine.setTemplateResolver(resolver);
         renderer = new HtmlRenderer(Integer.getInteger("asteroid.render.workers", 2),
-            Integer.getInteger("asteroid.render.queueCapacity", 64),
-            Integer.getInteger("asteroid.render.timeoutMillis", 30000), context -> {
-                context.route("http://local-asset/**", route -> {
+                Integer.getInteger("asteroid.render.queueCapacity", 64),
+                Integer.getInteger("asteroid.render.timeoutMillis", 30000),
+                context -> context.route("http://local-asset/**", route -> {
                     try {
                         Path assets = templates.resolve("assets").toRealPath();
                         Path asset = assets.resolve(URI.create(route.request().url()).getPath().substring(1)).toRealPath();
@@ -42,9 +47,9 @@ public final class TemplateController implements AutoCloseable {
                     } catch (Exception e) {
                         route.abort();
                     }
-                });
-            });
+                }));
     }
+
     public void render(Context ctx) {
         String name = ctx.pathParam("templateName");
         if (!name.matches("[a-zA-Z0-9_-]+")) {
@@ -55,7 +60,8 @@ public final class TemplateController implements AutoCloseable {
         }
         Map<String, Object> variables;
         try {
-            variables = new Gson().fromJson(ctx.body(), new TypeToken<Map<String, Object>>() {}.getType());
+            variables = new Gson().fromJson(ctx.body(), new TypeToken<Map<String, Object>>() {
+            }.getType());
             if (variables == null) {
                 throw new IllegalArgumentException("Missing template data");
             }
@@ -66,12 +72,13 @@ public final class TemplateController implements AutoCloseable {
         data.setVariables(variables);
         try {
             ctx.future(() -> CompletableFuture.supplyAsync(() ->
-                renderer.screenshot(engine.process(name, data)), renderer.executor())
-                .thenAccept(bytes -> ctx.contentType("image/png").result(bytes)));
+                            renderer.screenshot(engine.process(name, data)), renderer.executor())
+                    .thenAccept(bytes -> ctx.contentType("image/png").result(bytes)));
         } catch (RejectedExecutionException e) {
             throw new ApiException(ErrorCode.FETCH_FAILED, "Renderer busy");
         }
     }
+
     @Override
     public void close() {
         renderer.close();

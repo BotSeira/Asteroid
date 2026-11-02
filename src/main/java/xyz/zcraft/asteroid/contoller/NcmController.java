@@ -67,5 +67,6 @@ public class NcmController {
         putResult(ctx, playlistInfo);
     }
 
-    private record SongMatchPayload(String url, int startSeconds, int duration){}
+    private record SongMatchPayload(String url, int startSeconds, int duration) {
+    }
 }

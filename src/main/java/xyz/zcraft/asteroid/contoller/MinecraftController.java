@@ -1,6 +1,7 @@
 package xyz.zcraft.asteroid.contoller;
 
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import io.javalin.http.Context;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -11,7 +12,6 @@ import xyz.zcraft.asteroid.util.MinecraftServerProbe;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -58,7 +58,7 @@ public class MinecraftController {
             statusObj.addProperty("favicon", probe.status().favicon());
 
             obj.add("status", statusObj);
-            
+
             putResult(ctx, obj);
         } catch (IOException e) {
             throw new ApiException(ErrorCode.FETCH_FAILED, "Failed to probe server");

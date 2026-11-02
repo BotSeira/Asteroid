@@ -10,10 +10,10 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-public final class MarketStore {
+public final class GachaMarketStore {
     private final String url;
 
-    public MarketStore(String path) {
+    public GachaMarketStore(String path) {
         try {
             Path file = Path.of(path).toAbsolutePath();
             Files.createDirectories(file.getParent());

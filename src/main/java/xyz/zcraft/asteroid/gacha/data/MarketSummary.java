@@ -5,7 +5,9 @@ import com.google.gson.JsonObject;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-/** Latest market observation displayed above the charts. */
+/**
+ * Latest market observation displayed above the charts.
+ */
 public record MarketSummary(
         BigDecimal listed,
         BigDecimal lowest,

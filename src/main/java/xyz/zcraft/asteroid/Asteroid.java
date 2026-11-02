@@ -12,7 +12,7 @@ import xyz.zcraft.asteroid.runtime.AsteroidApplication;
 import java.io.IOException;
 
 public class Asteroid {
-    private static final Logger LOG =  LogManager.getLogger(Asteroid.class);
+    private static final Logger LOG = LogManager.getLogger(Asteroid.class);
 
     @Getter
     private static AppConfig conf;

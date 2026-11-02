@@ -12,7 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public final class MarketService implements AutoCloseable {
+public final class GachaMarketService implements AutoCloseable {
     public static final Set<String> ITEMS = Set.of(
             "replay_1", "replay_2", "replay_3",
             "boss_trophy", "platinum_trophy", "diamond_trophy", "emerald_trophy",
@@ -23,14 +23,12 @@ public final class MarketService implements AutoCloseable {
             "fuel", "mod_fragment", "banner_key"
     );
 
-    public final MarketStore store = new MarketStore("data/gacha-market.db");
+    private static final Logger LOG = LogManager.getLogger(GachaMarketService.class);
+    public final GachaMarketStore store = new GachaMarketStore("data/gacha-market.db");
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-
-    private static final Logger LOG = LogManager.getLogger(MarketService.class);
-
     private final String apiKey;
 
-    public MarketService(GachaConfig conf) {
+    public GachaMarketService(GachaConfig conf) {
         this.apiKey = conf.apiKey();
         int seconds = conf.marketRefreshInterval();
         if (seconds < 30) throw new IllegalArgumentException("Market interval must be at least 30 seconds");
@@ -101,6 +99,7 @@ public final class MarketService implements AutoCloseable {
         }
         throw new IllegalStateException("Market scan limit reached before the last page");
     }
+
     private void collect() {
         LOG.info("Collecting gacha market...");
         try {
@@ -108,7 +107,7 @@ public final class MarketService implements AutoCloseable {
             Map<String, TreeMap<Double, Long>> groups = new HashMap<>();
 
             for (var order : orders.values()) {
-                groups.computeIfAbsent(order.itemId(), k -> new TreeMap<>())
+                groups.computeIfAbsent(order.itemId(), _ -> new TreeMap<>())
                         .merge(order.unitPrice(), order.quantity(), Long::sum);
             }
 

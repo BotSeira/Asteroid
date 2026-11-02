@@ -1,7 +1,6 @@
 package xyz.zcraft.asteroid.util;
 
 import jakarta.annotation.Nullable;
-import xyz.zcraft.asteroid.ncm.NcmApi;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;

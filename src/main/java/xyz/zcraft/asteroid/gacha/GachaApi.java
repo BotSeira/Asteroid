@@ -77,6 +77,7 @@ public class GachaApi {
         if (response.statusCode() != 200) throw new IllegalStateException("Market HTTP " + response.statusCode());
         return JsonParser.parseString(response.body()).getAsJsonObject();
     }
+
     public static String getProfilePageUrl(String username) {
         return baseUrl + "/u/" + username;
     }
