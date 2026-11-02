@@ -78,7 +78,7 @@
 
         .chart-canvas {
             width: 100%;
-            height: 280px;
+            height: 300px;
         }
 
         #empty {
@@ -126,7 +126,7 @@
             </div>
         </div>
         <div class="metric">
-            <div class="metric-label" th:text="${summary.days} + '天成交笔数'">30 天成交</div>
+            <div class="metric-label" th:text="${summary.days} + '天成交'">30 天成交</div>
             <div class="metric-value"
                  th:text="${summary.sales == null ? '—' : #numbers.formatDecimal(summary.sales, 1, 'COMMA', 0, 'POINT')}">
                 1,234
@@ -141,7 +141,7 @@
     <div class="chart">
         <div style="display: flex; gap: 24px;">
             <div class="chart-title">价格走势</div>
-            <div class="chart-legend" style="display: flex; gap: 10px; margin-left: auto;">
+            <div class="chart-legend" style="display: flex; gap: 24px; margin-left: auto; margin-right: 24px;">
                 <div class="chart-legend-item">
                     <div class="chart-legend-color" style="background-color: #60a5fa;"></div>
                     <div class="chart-legend-label">最低价</div>
@@ -161,7 +161,7 @@
     <div class="chart">
         <div style="display: flex; gap: 24px;">
             <div class="chart-title">最低挂单价</div>
-            <div class="chart-legend" style="display: flex; gap: 10px; margin-left: auto;">
+            <div class="chart-legend" style="display: flex; gap: 24px; margin-left: auto; margin-right: 24px;">
                 <div class="chart-legend-item">
                     <div class="chart-legend-color" style="background-color: #60a5fa;"></div>
                     <div class="chart-legend-label">跌</div>
@@ -324,8 +324,12 @@
 <!--suppress ThymeleafObsoleteInlineAttributeInspection -->
 <script th:if="${summary != null}" th:inline="none">
     const timeAxis = {
-        type: 'time', min: data.rangeStart, max: data.rangeEnd, splitNumber: 8,
-        axisLabel: {formatter: '{MM}-{dd}\n{HH}:{mm}', hideOverlap: true}
+        type: 'time',
+        min: data.rangeStart,
+        max: data.rangeEnd,
+        splitNumber: 10,
+        axisLabel: {formatter: '{MM}-{dd}\n{HH}:{mm}', hideOverlap: true},
+        splitLine: {show: true, lineStyle: {color: '#293044'}}
     };
     const lineStyle = {type: 'line', connectNulls: false, symbolSize: 3};
     const emptyTitle = text => ({text, left: 'center', top: 'middle', textStyle: {color: '#b0bbcf', fontSize: 14}});
@@ -334,22 +338,38 @@
             title: data.hasPrices ? undefined : emptyTitle('暂无有效价格'),
             legend: {show: false},
             xAxis: {
-                ...timeAxis, splitNumber: 8,
-                axisTick: {show: true},
-                splitLine: {show: true, lineStyle: {color: '#293044'}}
+                ...timeAxis,
+                splitNumber: 8,
+                axisTick: {
+                    show: true
+                },
+                splitLine: {
+                    show: true,
+                    lineStyle: {color: '#293044'}
+                }
             },
             yAxis: {
-                type: 'log', scale: true,
-                min: extent => Number.isFinite(extent.min) && extent.min > 0
-                    ? Math.max(Number.MIN_VALUE, extent.min * 0.95) : 1,
+                type: 'log',
+                logBase: 2,
+                splitNumber: 8,
+                axisLabel: {
+                    show: true,
+                    hideOverlap: true,
+                    formatter: value => value.toLocaleString('en-US', {maximumFractionDigits: 2})
+                },
+                scale: true,
+                min: (extent => Number.isFinite(extent.min) && extent.min > 0
+                    ? Math.max(Number.MIN_VALUE, extent.min * 0.95)
+                    : 1),
                 minorTick: {
                     show: true,
-                    splitNumber: 5
+                    splitNumber: 2
                 },
                 minorSplitLine: {
                     show: true,
                     lineStyle: {color: '#202638'}
-                }
+                },
+                name: '价格'
             },
             series: [
                 {...lineStyle, name: '最低价', data: data.lowest},
@@ -359,7 +379,13 @@
         },
         candles: {
             xAxis: timeAxis,
-            yAxis: {type: 'value', min: data.candleMin, max: data.candleMax},
+            yAxis: {
+                type: 'value',
+                min: data.candleMin,
+                max: data.candleMax,
+                name: '最低挂单价',
+                splitNumber: 8,
+            },
             series: [{
                 type: 'candlestick',
                 data: data.candles,
@@ -373,16 +399,34 @@
         distribution: {
             title: data.distribution.length ? undefined : emptyTitle('暂无有效数据'),
             xAxis: {
-                type: 'value', name: '单价', nameLocation: 'middle', nameGap: 22,
-                min: data.distributionMin, max: data.distributionMax
+                type: 'value',
+                name: '单价',
+                nameLocation: 'middle',
+                nameGap: 22,
+                min: data.distributionMin,
+                max: data.distributionMax,
+                splitNumber: 12,
+                splitLine: {show: true, lineStyle: {color: '#293044'}}
             },
-            yAxis: {type: 'value', name: '数量'},
+            yAxis: {
+                type: 'value',
+                name: '数量',
+                splitNumber: 8,
+            },
             series: [{type: 'bar', data: data.distribution, encode: {x: 0, y: 1}, barWidth: '95%', barGap: '0%'}]
         },
         sales: {
             title: data.sales.length ? undefined : emptyTitle('暂无有效数据'),
-            xAxis: {type: 'time', axisLabel: {formatter: '{MM}-{dd}\n{HH}:{mm}'}},
-            yAxis: {type: 'value'},
+            xAxis: {
+                type: 'time',
+                axisLabel: {formatter: '{MM}-{dd}\n{HH}:{mm}'},
+                splitLine: {show: true, lineStyle: {color: '#293044'}}
+            },
+            yAxis: {
+                type: 'value',
+                name: '数量',
+                splitNumber: 8,
+            },
             series: [{...lineStyle, data: data.sales}]
         }
     };
