@@ -64,14 +64,9 @@
             padding-bottom: 12px
         }
 
-        svg {
+        .chart-canvas {
             width: 100%;
-            height: 260px
-        }
-
-        svg text {
-            fill: #b0bbcf;
-            font-size: 11px
+            height: 280px;
         }
 
         #empty {
@@ -100,21 +95,21 @@
         <div class="metric">
             <div class="metric-label">最低价</div>
             <div class="metric-value"
-                 th:text="${summary.lowest == null ? '—' : #numbers.formatDecimal(summary.lowest, 1, 'COMMA', summary.lowest.stripTrailingZeros().scale() > 0 ? 2 : 0, 'POINT')}">
+                 th:text="${summary.lowest == null ? '—' : #numbers.formatInteger(summary.lowest, 1, 'COMMA')}">
                 12,345
             </div>
         </div>
         <div class="metric">
             <div class="metric-label">中位价</div>
             <div class="metric-value"
-                 th:text="${summary.median == null ? '—' : #numbers.formatDecimal(summary.median, 1, 'COMMA', summary.median.stripTrailingZeros().scale() > 0 ? 2 : 0, 'POINT')}">
+                 th:text="${summary.median == null ? '—' : #numbers.formatDecimal(summary.median, 1, 'COMMA', 0, 'POINT')}">
                 12,345
             </div>
         </div>
         <div class="metric">
             <div class="metric-label">最高价</div>
             <div class="metric-value"
-                 th:text="${summary.highest == null ? '—' : #numbers.formatDecimal(summary.highest, 1, 'COMMA', summary.highest.stripTrailingZeros().scale() > 0 ? 2 : 0, 'POINT')}">
+                 th:text="${summary.highest == null ? '—' : #numbers.formatInteger(summary.highest, 1, 'COMMA')}">
                 12,345
             </div>
         </div>
@@ -133,177 +128,82 @@
 <div class="charts" th:if="${summary != null}">
     <div class="chart">
         <div class="chart-title">价格走势</div>
-        <svg id="prices" viewBox="0 0 550 260"></svg>
+        <div class="chart-canvas" id="prices"></div>
     </div>
     <div class="chart">
         <div class="chart-title">最低挂单价</div>
-        <div th:if="${candleSamples < 10}">请扩大数据范围</div>
-        <svg id="candles" th:if="${candleSamples >= 10}" viewBox="0 0 550 260"></svg>
+        <div th:if="${candleSamples == 0}">请扩大数据范围</div>
+        <div class="chart-canvas" id="candles"></div>
     </div>
     <div class="chart">
         <div class="chart-title">挂单价格分布</div>
-        <svg id="distribution" viewBox="0 0 550 260"></svg>
+        <div class="chart-canvas" id="distribution"></div>
     </div>
     <div class="chart">
         <div class="chart-title" th:text="${summary.days} + '天成交笔数'">30 天成交笔数</div>
-        <svg id="sales" viewBox="0 0 550 260"></svg>
+        <div class="chart-canvas" id="sales"></div>
     </div>
 </div>
+<!--suppress JSUnresolvedLibraryURL -->
+<script src="http://asteroid-assets/echarts.js" th:if="${summary != null}"></script>
 <!--suppress ThymeleafObsoleteInlineAttributeInspection -->
 <script th:if="${summary != null}" th:inline="javascript">
-    const rows = JSON.parse(/*[[${history}]]*/ '[]'), scale =/*[[${scale}]]*/ '1d';
-    const trendRows = JSON.parse(/*[[${trendRows}]]*/ '[]');
-    const rangeStart = /*[[${rangeStart}]]*/ 0, rangeEnd = /*[[${rangeEnd}]]*/ 0;
+    const data = JSON.parse(/*[[${chartData}]]*/ '{}');
 </script>
 <!--suppress ThymeleafObsoleteInlineAttributeInspection -->
 <script th:if="${summary != null}" th:inline="none">
-    const ns = 'http://www.w3.org/2000/svg', colors = ['#60a5fa', '#f472b6', '#fbbf24'];
-
-    function el(svg, tag, attrs, text) {
-        const e = document.createElementNS(ns, tag);
-        for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
-        if (text !== undefined) e.textContent = text;
-        svg.appendChild(e);
-        return e
-    }
-
-    const fmt = n => Number(n).toLocaleString('en-US', {maximumFractionDigits: 2});
-
-    function bucket(t, s) {
-        const [, n, u] = s.match(/(\d+)(min|h|d|mo)/), count = Number(n);
-        if (u === 'mo') {
-            const d = new Date(t), m = Math.floor((d.getUTCFullYear() * 12 + d.getUTCMonth()) / count) * count;
-            return Date.UTC(Math.floor(m / 12), m % 12, 1)
+    const timeAxis = {
+        type: 'time', min: data.rangeStart, max: data.rangeEnd, splitNumber: 5,
+        axisLabel: {formatter: '{MM}-{dd}\n{HH}:{mm}', hideOverlap: true}
+    };
+    const lineStyle = {type: 'line', connectNulls: false, symbolSize: 3};
+    const emptyTitle = text => ({text, left: 'center', top: 'middle', textStyle: {color: '#b0bbcf', fontSize: 14}});
+    const options = {
+        prices: {
+            title: data.hasPrices ? undefined : emptyTitle('暂无有效价格'),
+            legend: {textStyle: {color: '#b0bbcf'}},
+            xAxis: timeAxis,
+            yAxis: {type: 'log', scale: true},
+            series: [
+                {...lineStyle, name: '最低价', data: data.lowest},
+                {...lineStyle, name: '中位价', data: data.median},
+                {...lineStyle, name: '最高价', data: data.highest}
+            ]
+        },
+        candles: {
+            xAxis: timeAxis,
+            yAxis: {type: 'value', min: data.candleMin, max: data.candleMax},
+            series: [{
+                type: 'candlestick', data: data.candles, dimensions: ['TIME', 'OPEN', 'HIGH', 'LOW', 'CLOSE'], encode: {x: 0, y: [1, 4, 3, 2]}, barMaxWidth: 30,
+                itemStyle: {color: '#60a5fa', color0: '#f472b6', borderColor: '#60a5fa', borderColor0: '#f472b6'}
+            }]
+        },
+        distribution: {
+            title: data.distribution.length ? undefined : emptyTitle('暂无有效数据'),
+            xAxis: {
+                type: 'value', name: '单价', nameLocation: 'middle', nameGap: 22,
+                min: extent => Number.isFinite(extent.min) ? Math.max(0, extent.min - 1) : 0
+            },
+            yAxis: {type: 'value', name: '数量'},
+            series: [{type: 'bar', data: data.distribution, barMaxWidth: 16}]
+        },
+        sales: {
+            title: data.sales.length ? undefined : emptyTitle('暂无有效数据'),
+            xAxis: {type: 'time', axisLabel: {formatter: '{MM}-{dd}\n{HH}:{mm}'}},
+            yAxis: {type: 'value'},
+            series: [{...lineStyle, data: data.sales}]
         }
-        return Math.floor(t / (count * ({min: 60000, h: 3600000, d: 86400000}[u]))) * count * ({
-            min: 60000,
-            h: 3600000,
-            d: 86400000
-        }[u]);
-    }
-
-    function buildCandles(samples) {
-        const valid = samples.filter(row => Number.isFinite(row.lowest) && row.lowest >= 0);
-        if (valid.length < 10) return [];
-        const count = Math.min(20, valid.length);
-        // Balanced groups of actual observations; never borrow data outside the requested window.
-        return Array.from({length: count}, (_, i) => {
-            const part = valid.slice(Math.floor(i * valid.length / count), Math.floor((i + 1) * valid.length / count));
-            const values = part.map(row => row.lowest);
-            return {
-                time: part[0].time, end: part.at(-1).time, o: values[0], c: values.at(-1),
-                h: values.reduce((a, b) => Math.max(a, b)), l: values.reduce((a, b) => Math.min(a, b))
-            };
+    };
+    for (const [id, option] of Object.entries(options)) {
+        const container = document.getElementById(id);
+        if (!container) continue;
+        echarts.init(container, null, {renderer: 'svg'}).setOption({
+            animation: false, useUTC: true,
+            textStyle: {color: '#b0bbcf'}, color: ['#60a5fa', '#f472b6', '#fbbf24'],
+            grid: {left: 12, right: 24, top: 40, bottom: 28, containLabel: true},
+            ...option,
+            yAxis: {...option.yAxis, splitLine: {lineStyle: {color: '#293044'}}}
         });
-    }
-
-    function grouped(s) {
-        const m = new Map();
-        for (const r of rows) {
-            const t = bucket(r.time + 8 * 3600000, s) - 8 * 3600000;
-            if (!m.has(t)) m.set(t, []);
-            m.get(t).push(r)
-        }
-        return [...m].map(([time, rs]) => ({time, rs, last: rs.at(-1)}));
-    }
-
-    function plot(id, points, keys, date = true, fitY = false, xTickCount = 5, logY = false, xInset = 0) {
-        const svg = document.getElementById(id);
-        const valid = points.flatMap(p => keys.map(k => p[k])).filter(v => v != null && Number.isFinite(v) && (!logY || v > 0));
-        if (!valid.length) {
-            el(svg, 'text', {x: 180, y: 120}, logY ? '暂无有效正价格' : '暂无有效数据');
-            return null
-        }
-        const dataMin = valid.reduce((m, v) => Math.min(m, v), Infinity);
-        const dataMax = valid.reduce((m, v) => Math.max(m, v), -Infinity);
-        // Fit price candles to their actual range; keep padding for flat/single-point data.
-        const padding = dataMax > dataMin ? (dataMax - dataMin) * 0.08 : Math.max(Math.abs(dataMax) * 0.02, 0.01);
-        const logMin = logY ? Math.log10(dataMin) : 0;
-        const logMax = logY ? Math.log10(dataMax) : 0;
-        const logPadding = logMax > logMin ? (logMax - logMin) * 0.08 : 0.1;
-        const min = logY ? logMin - logPadding : fitY ? Math.max(0, dataMin - padding) : 0;
-        const max = logY ? logMax + logPadding : fitY ? dataMax + padding : Math.max(dataMax, 1) * 1.08;
-        const isTrend = id === 'prices' || id === 'candles';
-        const minX = isTrend ? rangeStart : points[0].time, maxX = isTrend ? rangeEnd : points.at(-1).time;
-        const x = t => 55 + xInset + (maxX === minX ? (465 - 2 * xInset) / 2 : (t - minX) / (maxX - minX) * (465 - 2 * xInset)),
-            y = v => 220 - ((logY ? Math.log10(v) : v) - min) / (max - min) * 190;
-        for (let i = 0; i <= 4; i++) {
-            const tick = min + (max - min) * i / 4;
-            const v = logY ? 10 ** tick : tick;
-            el(svg, 'line', {x1: 55, x2: 520, y1: y(v), y2: y(v), stroke: '#293044'});
-            el(svg, 'text', {
-                x: 49,
-                y: y(v) + 4,
-                'text-anchor': 'end'
-            }, logY ? v.toLocaleString('en-US', {maximumSignificantDigits: 4}) : fmt(v))
-        }
-        const label = t => date ? new Date(t + 8 * 3600000).toISOString().slice(5, 16).replace('T', ' ') : fmt(t);
-        const ticks = minX === maxX ? 1 : Math.max(2, Math.floor(xTickCount));
-        for (let i = 0; i < ticks; i++) {
-            const value = ticks === 1 ? minX : minX + (maxX - minX) * i / (ticks - 1);
-            const anchor = ticks === 1 ? 'middle' : i === 0 ? 'start' : i === ticks - 1 ? 'end' : 'middle';
-            el(svg, 'text', {x: x(value), y: 248, 'text-anchor': anchor}, label(value));
-        }
-        return {svg, x, y};
-    }
-
-    function line(id, points, keys, logY = false) {
-        const p = plot(id, points, keys, true, false, undefined, logY);
-        if (!p) return;
-        keys.forEach((key, i) => {
-            let previous = null;
-            points.forEach(r => {
-                if (r[key] == null || !Number.isFinite(r[key]) || (logY && r[key] <= 0)) {
-                    previous = null;
-                    return
-                }
-                if (previous) el(p.svg, 'line', {
-                    x1: p.x(previous.time),
-                    y1: p.y(previous[key]),
-                    x2: p.x(r.time),
-                    y2: p.y(r[key]),
-                    stroke: colors[i],
-                    'stroke-width': 2
-                });
-                el(p.svg, 'circle', {cx: p.x(r.time), cy: p.y(r[key]), r: 2, fill: colors[i]});
-                previous = r
-            })
-        })
-    }
-
-    {
-        const last = rows.at(-1);
-
-        line('prices', trendRows, ['lowest', 'median', 'highest'], true);
-        const candles = buildCandles(trendRows);
-        const p = candles.length ? plot('candles', candles, ['h', 'l'], true, true, undefined, false, 20) : null;
-        if (p) for (const [index, c] of candles.entries()) {
-            if (c.h == null) continue;
-            const color = c.c >= c.o ? colors[0] : colors[1];
-            const left = index > 0 ? p.x(c.time) - p.x(candles[index - 1].time) : Infinity;
-            const right = index + 1 < candles.length ? p.x(candles[index + 1].time) - p.x(c.time) : Infinity;
-            const spacing = Math.min(left, right);
-            const w = candles.length === 1 ? 28 : Math.min(40, spacing * 0.7);
-            el(p.svg, 'line', {x1: p.x(c.time), x2: p.x(c.time), y1: p.y(c.h), y2: p.y(c.l), stroke: color});
-            el(p.svg, 'rect', {
-                x: p.x(c.time) - w / 2,
-                y: Math.min(p.y(c.o), p.y(c.c)),
-                width: w,
-                height: Math.max(1, Math.abs(p.y(c.o) - p.y(c.c))),
-                fill: color
-            })
-        }
-        const dist = last.distribution.map(([price, qty]) => ({time: price, qty}));
-        const d = plot('distribution', dist, ['qty'], false);
-        if (d) for (const r of dist) el(d.svg, 'line', {
-            x1: d.x(r.time),
-            x2: d.x(r.time),
-            y1: 220,
-            y2: d.y(r.qty),
-            stroke: colors[0],
-            'stroke-width': Math.max(2, Math.min(12, 400 / dist.length))
-        });
-        line('sales', grouped('1d').map(g => ({time: g.time, sales: g.last.sales})), ['sales']);
     }
 </script>
 </body>

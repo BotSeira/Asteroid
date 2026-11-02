@@ -1,5 +1,6 @@
 package xyz.zcraft.asteroid.contoller;
 
+import com.microsoft.playwright.Route;
 import io.javalin.http.Context;
 import org.jetbrains.annotations.NotNull;
 import org.thymeleaf.TemplateEngine;
@@ -10,8 +11,14 @@ import xyz.zcraft.asteroid.gacha.GachaApi;
 import xyz.zcraft.asteroid.gacha.GachaMarketService;
 import xyz.zcraft.asteroid.gacha.data.market.Guide;
 import xyz.zcraft.asteroid.gacha.data.market.MarketSummary;
+import xyz.zcraft.asteroid.gacha.data.market.MarketTrendData;
 import xyz.zcraft.asteroid.network.ErrorCode;
 import xyz.zcraft.image.HtmlRenderer;
+
+import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.regex.Pattern;
 
 import static xyz.zcraft.asteroid.util.RequestUtil.putResult;
 import static xyz.zcraft.asteroid.util.RequestUtil.requirePathString;
@@ -19,9 +26,19 @@ import static xyz.zcraft.asteroid.util.RequestUtil.requirePathString;
 public final class MarketController implements AutoCloseable {
     private final GachaMarketService service;
     private final TemplateEngine engine = new TemplateEngine();
-    private final HtmlRenderer renderer = new HtmlRenderer(2, 32, 30000, _ -> {
+    private static final byte[] ECHARTS = loadECharts();
+    private final HtmlRenderer renderer = new HtmlRenderer(2, 32, 30000, browser -> {
+        browser.route("http://asteroid-assets/echarts.js", route -> route.fulfill(new Route.FulfillOptions().setContentType("application/javascript").setBodyBytes(ECHARTS)));
     });
 
+    private static byte[] loadECharts() {
+        try (var stream = MarketController.class.getResourceAsStream("/vendor/echarts/echarts.min.js")) {
+            if (stream == null) throw new IllegalStateException("Missing bundled ECharts");
+            return stream.readAllBytes();
+        } catch (IOException e) {
+            throw new IllegalStateException("Cannot load ECharts", e);
+        }
+    }
     private final String apiKey;
 
     public MarketController(GachaConfig conf) {
@@ -43,13 +60,13 @@ public final class MarketController implements AutoCloseable {
         return scale;
     }
 
-    public static java.time.Instant rangeStart(java.time.Instant end, String scale) {
-        var match = java.util.regex.Pattern.compile("([1-9][0-9]{0,3})(min|h|d|mo)").matcher(validateScale(scale));
+    public static Instant rangeStart(Instant end, String scale) {
+        var match = Pattern.compile("([1-9][0-9]{0,3})(min|h|d|mo)").matcher(validateScale(scale));
         if (!match.matches()) {
             throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Invalid scale");
         }
         int count = Integer.parseInt(match.group(1));
-        var local = end.atZone(java.time.ZoneId.of("Asia/Shanghai"));
+        var local = end.atZone(ZoneId.of("Asia/Shanghai"));
         return switch (match.group(2)) {
             case "min" -> local.minusMinutes(count).toInstant();
             case "h" -> local.minusHours(count).toInstant();
@@ -63,29 +80,15 @@ public final class MarketController implements AutoCloseable {
         if (!GachaMarketService.ITEMS.contains(id))
             throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Unknown market item");
         String scale = validateScale(ctx.queryParam("scale"));
-        var end = java.time.Instant.now();
+        var end = Instant.now();
         var start = rangeStart(end, scale);
         var history = service.store.history(id, Math.min(start.toEpochMilli(), end.toEpochMilli() - 366L * 86400000));
-        var trendRows = new com.google.gson.JsonArray();
-        int candleSamples = 0;
-        for (var entry : history) {
-            var row = entry.getAsJsonObject();
-            long time = row.get("time").getAsLong();
-            if (time < start.toEpochMilli() || time > end.toEpochMilli()) continue;
-            trendRows.add(row);
-            var low = row.get("lowest");
-            if (low != null && !low.isJsonNull() && Double.isFinite(low.getAsDouble()) && low.getAsDouble() >= 0)
-                candleSamples++;
-        }
-
+        var trend = MarketTrendData.fromHistory(history, start, end);
         var data = new org.thymeleaf.context.Context();
         data.setVariable("name", GachaMarketService.getItemName(id));
         data.setVariable("scale", scale);
-        data.setVariable("history", history.toString());
-        data.setVariable("trendRows", trendRows.toString());
-        data.setVariable("rangeStart", start.toEpochMilli());
-        data.setVariable("rangeEnd", end.toEpochMilli());
-        data.setVariable("candleSamples", candleSamples);
+        data.setVariable("chartData", new com.google.gson.Gson().toJson(trend));
+        data.setVariable("candleSamples", trend.candleSamples());
         if (!history.isEmpty()) {
             var latest = history.get(history.size() - 1).getAsJsonObject();
             data.setVariable("summary", MarketSummary.fromJson(latest));
