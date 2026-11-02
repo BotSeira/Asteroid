@@ -35,7 +35,7 @@ public class Router {
         this.miscController = new MiscController();
         this.braveSearchController = new BraveSearchController(conf.braveSearch());
         this.browserUseController = new BrowserUseController(browserService, cos);
-        this.gachaController = new GachaController(browserService);
+        this.gachaController = new GachaController(browserService, conf.gacha());
         this.marketController = new MarketController(conf.gacha());
 
         LOG.info("Router created");

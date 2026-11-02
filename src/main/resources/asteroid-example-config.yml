@@ -43,3 +43,4 @@ cos:
 
 gacha:
   marketRefreshInterval: 120
+  apiKey:

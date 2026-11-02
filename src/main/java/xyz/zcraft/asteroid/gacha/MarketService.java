@@ -28,7 +28,10 @@ public final class MarketService implements AutoCloseable {
 
     private static final Logger LOG = LogManager.getLogger(MarketService.class);
 
+    private final String apiKey;
+
     public MarketService(GachaConfig conf) {
+        this.apiKey = conf.apiKey();
         int seconds = conf.marketRefreshInterval();
         if (seconds < 30) throw new IllegalArgumentException("Market interval must be at least 30 seconds");
         scheduler.scheduleWithFixedDelay(this::collect, 0, seconds, TimeUnit.SECONDS);
@@ -101,7 +104,7 @@ public final class MarketService implements AutoCloseable {
     private void collect() {
         LOG.info("Collecting gacha market...");
         try {
-            Map<String, MarketItem> orders = scanListings(GachaApi::getMarketListings);
+            Map<String, MarketItem> orders = scanListings((i) -> GachaApi.getMarketListings(apiKey, i));
             Map<String, TreeMap<Double, Long>> groups = new HashMap<>();
 
             for (var order : orders.values()) {
@@ -112,7 +115,7 @@ public final class MarketService implements AutoCloseable {
             for (String id : ITEMS) {
                 if (Thread.currentThread().isInterrupted()) return;
                 try {
-                    var guide = GachaApi.getMarketGuide(id);
+                    var guide = GachaApi.getMarketGuide(apiKey, id);
                     for (String key : List.of("listed", "sales", "days", "updatedAt"))
                         if (!guide.has(key) || guide.get(key).isJsonNull())
                             throw new IllegalStateException("Incomplete guide");

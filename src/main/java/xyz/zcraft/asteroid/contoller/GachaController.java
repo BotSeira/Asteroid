@@ -6,6 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xyz.zcraft.asteroid.browser.BrowserInstance;
 import xyz.zcraft.asteroid.browser.BrowserService;
+import xyz.zcraft.asteroid.config.GachaConfig;
 import xyz.zcraft.asteroid.gacha.GachaApi;
 import xyz.zcraft.asteroid.gacha.data.GachaPlayer;
 import xyz.zcraft.asteroid.gacha.data.Own;
@@ -20,9 +21,11 @@ public class GachaController {
     private static final Gson GSON = new Gson();
 
     private final BrowserInstance browser;
+    private final String apiKey;
 
-    public GachaController(BrowserService browserService) {
+    public GachaController(BrowserService browserService, GachaConfig config) {
         this.browser = browserService.createBrowser(true);
+        this.apiKey = config.apiKey();
     }
 
     public void getUserProfile(Context ctx) {
@@ -40,7 +43,7 @@ public class GachaController {
     public void getPlayerCardOwners(Context ctx) {
         final long uid = requirePathLong(ctx, "uid");
 
-        final List<Own> owners = GachaApi.getUserCardOwners(uid);
+        final List<Own> owners = GachaApi.getUserCardOwners(apiKey, uid);
 
         putResult(ctx, owners);
     }
@@ -51,7 +54,7 @@ public class GachaController {
         final Integer offset = optionalInteger(ctx, "offset", 0);
         final String sort = optionalString(ctx, "sort", "popular");
 
-        final List<GachaPlayer> owners = GachaApi.searchPlayers(q, limit, offset, sort);
+        final List<GachaPlayer> owners = GachaApi.searchPlayers(apiKey, q, limit, offset, sort);
 
         putResult(ctx, owners);
     }

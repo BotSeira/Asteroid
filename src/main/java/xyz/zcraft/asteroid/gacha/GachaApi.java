@@ -32,8 +32,8 @@ public class GachaApi {
         Runtime.getRuntime().addShutdownHook(new Thread(CLIENT::close));
     }
 
-    public static List<Own> getUserCardOwners(long uid) {
-        final HttpResponse<String> response = get("/api/players/" + uid + "/owners");
+    public static List<Own> getUserCardOwners(String apiKey, long uid) {
+        final HttpResponse<String> response = get(apiKey, "/api/players/" + uid + "/owners");
         final JsonArray array = JsonParser.parseString(response.body()).getAsJsonArray();
         List<Own> result = new ArrayList<>(array.size());
 
@@ -44,8 +44,8 @@ public class GachaApi {
         return result;
     }
 
-    public static List<GachaPlayer> searchPlayers(String query, int limit, int offset, String sort) {
-        final HttpResponse<String> response = get("/api/players", Query.create()
+    public static List<GachaPlayer> searchPlayers(String apiKey, String query, int limit, int offset, String sort) {
+        final HttpResponse<String> response = get(apiKey, "/api/players", Query.create()
                 .param("q", query)
                 .param("limit", String.valueOf(limit))
                 .param("offset", String.valueOf(offset))
@@ -62,18 +62,18 @@ public class GachaApi {
         return result;
     }
 
-    public static com.google.gson.JsonObject getMarketGuide(String item) {
-        return marketJson("/api/market/guide", Query.create().param("itemId", item));
+    public static com.google.gson.JsonObject getMarketGuide(String apiKey, String item) {
+        return marketJson(apiKey, "/api/market/guide", Query.create().param("itemId", item));
     }
 
-    public static com.google.gson.JsonObject getMarketListings(int offset) {
-        return marketJson("/api/market/listings", Query.create().param("mode", "bin")
+    public static com.google.gson.JsonObject getMarketListings(String apiKey, int offset) {
+        return marketJson(apiKey, "/api/market/listings", Query.create().param("mode", "bin")
                 .param("kind", "item").param("sort", "newest")
                 .param("limit", "100").param("offset", String.valueOf(offset)));
     }
 
-    private static com.google.gson.JsonObject marketJson(String path, Query query) {
-        var response = get(path, query);
+    private static com.google.gson.JsonObject marketJson(String apiKey, String path, Query query) {
+        var response = get(apiKey, path, query);
         if (response.statusCode() != 200) throw new IllegalStateException("Market HTTP " + response.statusCode());
         return JsonParser.parseString(response.body()).getAsJsonObject();
     }
@@ -81,14 +81,15 @@ public class GachaApi {
         return baseUrl + "/u/" + username;
     }
 
-    private static HttpResponse<String> get(String path) {
-        return get(path, Query.create());
+    private static HttpResponse<String> get(String apiKey, String path) {
+        return get(apiKey, path, Query.create());
     }
 
-    private static HttpResponse<String> get(String path, Query query) {
+    private static HttpResponse<String> get(String apiKey, String path, Query query) {
         try {
             final HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + path + query.build()))
+                    .header("Authorization", "Bearer " + apiKey)
                     .timeout(Duration.ofSeconds(30)).GET()
                     .build();
 
