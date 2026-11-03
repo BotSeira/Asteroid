@@ -1,13 +1,15 @@
 package xyz.zcraft.asteroid.gacha;
 
 import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import xyz.zcraft.asteroid.config.GachaConfig;
+import xyz.zcraft.asteroid.gacha.data.Card;
 import xyz.zcraft.asteroid.gacha.data.Item;
-import xyz.zcraft.asteroid.gacha.data.market.MarketOrder;
+import xyz.zcraft.asteroid.gacha.data.market.*;
+import xyz.zcraft.asteroid.util.StrictRateGate;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -29,6 +31,7 @@ public final class GachaMarketService implements AutoCloseable {
     public final GachaMarketStore store = new GachaMarketStore("data/gacha-market.db");
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final String apiKey;
+    private final StrictRateGate rateGate = new StrictRateGate(Duration.ofSeconds(1).toNanos());
 
     public GachaMarketService(GachaConfig conf) {
         this.apiKey = conf.apiKey();
@@ -69,32 +72,31 @@ public final class GachaMarketService implements AutoCloseable {
         };
     }
 
-    static Map<String, MarketOrder<Item>> scanItemListings(IntFunction<JsonObject> fetch) {
+    static <T extends Sellable> Map<String, MarketOrder<T>> scanMarketListings(IntFunction<MarketListing<T>> fetch) {
         final int pageSize = 100;
         final int stride = 90;
         final int maxPages = 1114;
 
-        Map<String, MarketOrder<Item>> orders = new LinkedHashMap<>();
+        Map<String, MarketOrder<T>> orders = new LinkedHashMap<>();
         int budget = maxPages;
 
         for (int pageIndex = 0; pageIndex < budget; pageIndex++) {
             if (Thread.currentThread().isInterrupted())
                 throw new java.util.concurrent.CancellationException("Market collection interrupted");
 
-            var page = fetch.apply(pageIndex * stride);
-            var items = page.getAsJsonArray("items");
+            final MarketListing<T> listing = fetch.apply(pageIndex * stride);
+            var items = listing.orders();
             if (items == null || items.size() > pageSize)
                 throw new IllegalStateException("Invalid market page");
             if (pageIndex == 0) {
-                int total = page.get("total").getAsInt();
+                int total = listing.total();
                 if (total < 0 || total > 100000)
                     throw new IllegalStateException("Market exceeds scan limit");
 
                 budget = Math.min(maxPages, (total + stride - 1) / stride + 2);
             }
             for (var entry : items) {
-                var order = MarketOrder.parse(entry.getAsJsonObject(), Item.class);
-                orders.put(order.id(), order);
+                orders.put(entry.id(), entry);
             }
 
             if (items.size() < pageSize) return orders;
@@ -102,21 +104,102 @@ public final class GachaMarketService implements AutoCloseable {
         throw new IllegalStateException("Market scan limit reached before the last page");
     }
 
+    public void fetchItemNow(Identifier.Item identifier) {
+        if (!ITEMS.contains(identifier.getItemId())) {
+            throw new IllegalArgumentException();
+        }
+
+        Map<String, MarketOrder<Item>> itemOrders = scanMarketListings((i) -> {
+                    try {
+                        rateGate.acquire();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return GachaApi.getMarketItemListings(apiKey, 100, i, "newest", identifier, Item.class);
+                }
+        );
+
+        final Guide itemGuide = GachaApi.getItemGuide(apiKey, identifier.getItemId());
+
+        final TreeMap<Double, Long> group = new TreeMap<>();
+        for (var order : itemOrders.values()) {
+            group.merge(MarketOrder.getUnitPrice(order), order.obj().qty(), Long::sum);
+        }
+
+        final JsonArray distribution = new JsonArray();
+        group.forEach((price, qty) -> {
+            var point = new JsonArray();
+            point.add(price);
+            point.add(qty);
+            distribution.add(point);
+        });
+
+        store.save(identifier.getItemId(), itemGuide, distribution);
+    }
+
+    public void fetchCardNow(Identifier.Card identifier) {
+        Map<String, MarketOrder<Card>> cardOrders = scanMarketListings((i) -> {
+                    try {
+                        rateGate.acquire();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return GachaApi.getMarketItemListings(apiKey, 100, i, "newest", identifier, Card.class);
+                }
+        );
+
+        final Guide itemGuide = GachaApi.getCardGuide(apiKey, identifier);
+
+        final TreeMap<Double, Long> group = new TreeMap<>();
+        for (var order : cardOrders.values()) {
+            group.merge((double) order.price(), 1L, Long::sum);
+        }
+
+        final JsonArray distribution = new JsonArray();
+        group.forEach((price, qty) -> {
+            var point = new JsonArray();
+            point.add(price);
+            point.add(qty);
+            distribution.add(point);
+        });
+
+        store.save(identifier.getUniqueId(), itemGuide, distribution);
+    }
+
     private void collect() {
         LOG.info("Collecting gacha market...");
         try {
-            Map<String, MarketOrder<Item>> orders = scanItemListings((i) -> GachaApi.getMarketItemListings(apiKey, i));
-            Map<String, TreeMap<Double, Long>> groups = new HashMap<>();
+            Map<String, MarketOrder<Item>> itemOrders = scanMarketListings((i) ->
+                    GachaApi.getMarketItemListings(apiKey, 100, i, "newest", Identifier.empty(), Item.class)
+            );
 
-            for (var order : orders.values()) {
-                groups.computeIfAbsent(order.obj().id(), _ -> new TreeMap<>())
+            Map<String, MarketOrder<Card>> cardOrders = scanMarketListings((i) ->
+                    GachaApi.getMarketItemListings(apiKey, 100, i, "newest", Identifier.empty(), Card.class)
+            );
+
+            Map<Identifier, TreeMap<Double, Long>> groups = new HashMap<>();
+
+            ITEMS.forEach(e -> groups.putIfAbsent(Identifier.Item.of(e), new TreeMap<>()));
+
+            for (var order : itemOrders.values()) {
+                groups.computeIfAbsent(Identifier.Item.from(order.obj()), _ -> new TreeMap<>())
                         .merge(MarketOrder.getUnitPrice(order), order.obj().qty(), Long::sum);
             }
 
-            for (String id : ITEMS) {
+            for (var order : cardOrders.values()) {
+                groups.computeIfAbsent(Identifier.Card.from(order.obj()), _ -> new TreeMap<>())
+                        .merge((double) order.price(), 1L, Long::sum);
+            }
+
+            for (Identifier id : groups.keySet()) {
                 if (Thread.currentThread().isInterrupted()) return;
+
                 try {
-                    var guide = GachaApi.getItemGuide(apiKey, id);
+                    Guide guide = null;
+                    if (!(id instanceof Identifier.Card c) || c.shouldFetchGuide()) {
+                        rateGate.acquire();
+                        guide = GachaApi.getGuide(apiKey, id.getGuideIdentifier());
+                    }
                     var distribution = new JsonArray();
                     groups.getOrDefault(id, new TreeMap<>()).forEach((price, qty) -> {
                         var point = new JsonArray();
@@ -124,7 +207,7 @@ public final class GachaMarketService implements AutoCloseable {
                         point.add(qty);
                         distribution.add(point);
                     });
-                    store.save(id, guide, distribution);
+                    store.save(id.getUniqueId(), guide, distribution);
                 } catch (Exception e) {
                     LOG.warn("Market guide collection failed for {}", id, e);
                 }

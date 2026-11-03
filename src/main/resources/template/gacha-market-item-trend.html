@@ -91,8 +91,10 @@
     </style>
 </head>
 <body>
-<div style="border-bottom: 2px solid #f472b6; padding-bottom: 12px; display: flex; align-items: flex-end; gap: 20px;">
+<div style="border-bottom: 2px solid #f472b6; padding-bottom: 12px; display: flex; align-items: flex-end; gap: 12px;">
     <div class="title" th:text="${name}">铜回放</div>
+    <div class="subtitle" th:text="${type}">物品</div>
+    <div class="subtitle">·</div>
     <div class="subtitle" th:text="'近' + ${scale}">近 3d</div>
     <div id="metrics"
          style="display: flex; align-items: end; margin-left: auto;"
@@ -354,8 +356,7 @@
                 splitNumber: 8,
                 axisLabel: {
                     show: true,
-                    hideOverlap: true,
-                    formatter: value => value.toLocaleString('en-US', {maximumFractionDigits: 2})
+                    hideOverlap: true
                 },
                 scale: true,
                 min: (extent => Number.isFinite(extent.min) && extent.min > 0

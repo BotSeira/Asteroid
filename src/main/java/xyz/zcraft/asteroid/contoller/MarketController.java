@@ -10,6 +10,7 @@ import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.gacha.GachaApi;
 import xyz.zcraft.asteroid.gacha.GachaMarketService;
 import xyz.zcraft.asteroid.gacha.data.market.Guide;
+import xyz.zcraft.asteroid.gacha.data.market.Identifier;
 import xyz.zcraft.asteroid.gacha.data.market.MarketSummary;
 import xyz.zcraft.asteroid.gacha.data.market.MarketTrendData;
 import xyz.zcraft.asteroid.network.ErrorCode;
@@ -20,16 +21,17 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.regex.Pattern;
 
-import static xyz.zcraft.asteroid.util.RequestUtil.putResult;
-import static xyz.zcraft.asteroid.util.RequestUtil.requirePathString;
+import static xyz.zcraft.asteroid.util.RequestUtil.*;
 
 public final class MarketController implements AutoCloseable {
     private final GachaMarketService service;
     private final TemplateEngine engine = new TemplateEngine();
     private static final byte[] ECHARTS = loadECharts();
-    private final HtmlRenderer renderer = new HtmlRenderer(2, 32, 30000, browser -> {
-        browser.route("http://asteroid-assets/echarts.js", route -> route.fulfill(new Route.FulfillOptions().setContentType("application/javascript").setBodyBytes(ECHARTS)));
-    });
+    private final HtmlRenderer renderer = new HtmlRenderer(2, 32, 30000,
+            browser -> browser.route("http://asteroid-assets/echarts.js",
+                    route -> route.fulfill(new Route.FulfillOptions().setContentType("application/javascript").setBodyBytes(ECHARTS))
+            )
+    );
 
     private static byte[] loadECharts() {
         try (var stream = MarketController.class.getResourceAsStream("/vendor/echarts/echarts.min.js")) {
@@ -54,7 +56,7 @@ public final class MarketController implements AutoCloseable {
     }
 
     public static String validateScale(String scale) {
-        if (scale == null) return "1d";
+        if (scale == null) return "12h";
         if (!scale.matches("[1-9][0-9]{0,3}(min|h|d|mo)"))
             throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "scale must be a positive interval such as 30min, 2h, 1d or 1mo (maximum 9999 units)");
         return scale;
@@ -79,6 +81,9 @@ public final class MarketController implements AutoCloseable {
         String id = ctx.pathParam("item_id");
         if (!GachaMarketService.ITEMS.contains(id))
             throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Unknown market item");
+
+        service.fetchItemNow(Identifier.Item.of(id));
+
         String scale = validateScale(ctx.queryParam("scale"));
         var end = Instant.now();
         var start = rangeStart(end, scale);
@@ -86,6 +91,7 @@ public final class MarketController implements AutoCloseable {
         var trend = MarketTrendData.fromHistory(history, start, end);
         var data = new org.thymeleaf.context.Context();
         data.setVariable("name", GachaMarketService.getItemName(id));
+        data.setVariable("type", "物品");
         data.setVariable("scale", scale);
         data.setVariable("chartData", new com.google.gson.Gson().toJson(trend));
         data.setVariable("candleSamples", trend.candleSamples());
@@ -104,11 +110,50 @@ public final class MarketController implements AutoCloseable {
         renderer.close();
     }
 
+    public void itemGuide(@NotNull Context ctx) {
+        String id = ctx.pathParam("item_id");
+        if (!GachaMarketService.ITEMS.contains(id))
+            throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Unknown market item");
+
+        final Guide guide = GachaApi.getItemGuide(apiKey, id);
+
+        putResult(ctx, guide);
+    }
+
     public void playerGuide(@NotNull Context ctx) {
         final String username = requirePathString(ctx, "username");
+        final boolean sig = optionalBoolean(ctx, "sig", false);
 
-        final Guide cardGuide = GachaApi.getCardGuide(apiKey, username);
+        final Guide cardGuide = GachaApi.getCardGuide(apiKey, username, sig);
 
         putResult(ctx, cardGuide);
+    }
+
+    public void playerTrend(@NotNull Context ctx) {
+        final String username = requirePathString(ctx, "username");
+        final boolean sig = optionalBoolean(ctx, "sig", false);
+
+        final Identifier.Card identifier = Identifier.Card.of(username, sig);
+
+        service.fetchCardNow(identifier);
+
+        String scale = validateScale(ctx.queryParam("scale"));
+        var end = Instant.now();
+        var start = rangeStart(end, scale);
+        var history = service.store.history(identifier.getUniqueId(), Math.min(start.toEpochMilli(), xyz.zcraft.asteroid.gacha.data.market.MarketTrendSettings.salesSince(end)));
+        var trend = MarketTrendData.fromHistory(history, start, end);
+        var data = new org.thymeleaf.context.Context();
+        data.setVariable("name", username);
+        data.setVariable("type", "卡片" + (sig ? "(签名)" : ""));
+        data.setVariable("scale", scale);
+        data.setVariable("chartData", new com.google.gson.Gson().toJson(trend));
+        data.setVariable("candleSamples", trend.candleSamples());
+        if (!history.isEmpty()) {
+            var latest = history.get(history.size() - 1).getAsJsonObject();
+            data.setVariable("summary", MarketSummary.fromJson(latest));
+        }
+
+        ctx.future(() -> renderer.render(engine.process("gacha-market-item-trend", data))
+                .thenAccept(bytes -> ctx.contentType("image/png").result(bytes)));
     }
 }

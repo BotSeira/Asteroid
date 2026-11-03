@@ -4,13 +4,12 @@ import com.google.gson.*;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import xyz.zcraft.asteroid.gacha.data.Card;
 import xyz.zcraft.asteroid.gacha.data.GachaPlayer;
 import xyz.zcraft.asteroid.gacha.data.Item;
 import xyz.zcraft.asteroid.gacha.data.Own;
-import xyz.zcraft.asteroid.gacha.data.market.Guide;
-import xyz.zcraft.asteroid.gacha.data.market.MarketOrder;
-import xyz.zcraft.asteroid.gacha.data.market.Sellable;
+import xyz.zcraft.asteroid.gacha.data.market.*;
 import xyz.zcraft.asteroid.util.Query;
 
 import java.io.IOException;
@@ -64,18 +63,23 @@ public class GachaApi {
         return result;
     }
 
-    public static Guide getItemGuide(String apiKey, String item) {
-        return getGuide(apiKey, item, Item.class);
+    public static Guide getItemGuide(String apiKey, String itemId) {
+        return getGuide(apiKey, GuideIdentifier.Item.of(itemId));
     }
 
-    public static Guide getCardGuide(String apiKey, String username) {
-        final List<MarketOrder<Card>> marketOrders = getMarketItemListings(apiKey, 10, 0, "newest", username, Card.class);
+    public static Guide getCardGuide(String apiKey, String username, boolean sig) {
+        return getCardGuide(apiKey, Identifier.Card.of(username, sig));
+    }
+
+    public static Guide getCardGuide(String apiKey, Identifier.Card identifier) {
+        final MarketListing<Card> newest = getMarketItemListings(apiKey, 10, 0, "newest", identifier, Card.class);
+        final List<MarketOrder<Card>> marketOrders = newest.orders();
         return marketOrders.stream()
-                .filter(e -> username.equalsIgnoreCase(e.obj().player().username()))
+                .filter(e -> identifier.getUsername().equalsIgnoreCase(e.obj().player().username()))
                 .findFirst()
                 .map(MarketOrder::obj)
-                .map(Card::id)
-                .map(id -> getGuide(apiKey, id, Card.class))
+                .map(GuideIdentifier.Card::from)
+                .map(id -> getGuide(apiKey, id))
                 .orElse(Guide.empty());
     }
 
@@ -85,31 +89,21 @@ public class GachaApi {
                 .param("limit", "100").param("offset", String.valueOf(offset)));
     }
 
-    public static <T extends Sellable> Guide getGuide(String apiKey, String identifier, Class<T> itemClass) {
-        Query query = Query.create();
-        if (Item.class == itemClass) {
-            query.param("itemId", identifier);
-        } else if (Card.class == itemClass) {
-            query.param("cardId", identifier);
-        } else {
-            throw new IllegalArgumentException("Unsupported item class" + itemClass.getName());
-        }
-
-        return GSON.fromJson(getSafe(apiKey, "/api/market/guide", query), Guide.class);
+    static Guide getGuide(String apiKey, GuideIdentifier identifier) {
+        LOG.debug("Getting guide for {}", identifier);
+        return GSON.fromJson(getSafe(apiKey, "/api/market/guide", identifier.getGuideQueryParam()), Guide.class);
     }
 
-    public static <T extends Sellable> List<MarketOrder<T>> getMarketItemListings(
-            String apiKey, int limit, int offset, String sort, String identifier, Class<T> itemClass
+    public static <T extends Sellable> MarketListing<T> getMarketItemListings(
+            String apiKey, int limit, int offset, String sort, @NotNull Identifier identifier, Class<T> itemClass
     ) {
+        LOG.debug("Scanning market listings with {} {} {} {} {}", limit, offset, sort, identifier, itemClass.getName());
         String kind;
-        Query query = Query.create();
 
         if (Item.class == itemClass) {
             kind = "item";
-            if (identifier != null) query.param("itemId", identifier);
         } else if (Card.class == itemClass) {
             kind = "card";
-            if (identifier != null) query.param("q", identifier);
         } else {
             throw new IllegalArgumentException("Unsupported item class" + itemClass.getName());
         }
@@ -120,7 +114,7 @@ public class GachaApi {
                 .param("sort", sort)
                 .param("limit", limit)
                 .param("offset", offset)
-                .merge(query)
+                .merge(identifier.getListingQueryParam())
         );
 
         final JsonArray itemsArr = result.getAsJsonArray("items");
@@ -129,7 +123,8 @@ public class GachaApi {
         for (JsonElement elem : itemsArr) {
             marketOrders.add(MarketOrder.parse(elem, itemClass));
         }
-        return marketOrders;
+
+        return new MarketListing<>(marketOrders, result.get("total").getAsInt());
     }
 
     private static JsonObject getSafe(String apiKey, String path, Query query) {

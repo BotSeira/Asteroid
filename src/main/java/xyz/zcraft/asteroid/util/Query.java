@@ -37,7 +37,14 @@ public class Query {
     }
 
     public Query merge(Query another) {
-        params.putAll(another.params);
+        if (another != null) {
+            params.putAll(another.params);
+        }
         return this;
+    }
+
+    @Override
+    public String toString() {
+        return params.toString();
     }
 }

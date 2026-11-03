@@ -19,7 +19,7 @@ public record Card(
         String skill,
         String passive,
         long rerolls,
-        Object sig,
+        Sig sig,
         List<Object> mods,
         long followersAtMint,
         long mapperSubsAtMint,
@@ -28,5 +28,8 @@ public record Card(
         long rulesetVersion,
         String mintedAt,
         GachaUser owner,
-        GachaPlayer player) implements Sellable {
+        GachaPlayer player
+) implements Sellable {
+    public record Sig(String id, String tier) {
+    }
 }
