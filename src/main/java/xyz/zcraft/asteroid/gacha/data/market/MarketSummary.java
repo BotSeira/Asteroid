@@ -14,17 +14,13 @@ public record MarketSummary(
         BigDecimal median,
         BigDecimal highest,
         BigDecimal sales,
-        BigDecimal days,
-        String updatedAt,
-        String sampledAt
+        BigDecimal days
 ) {
     public static MarketSummary fromJson(JsonObject snapshot) {
         return new MarketSummary(
                 number(snapshot, "listed"), number(snapshot, "lowest"),
                 number(snapshot, "median"), number(snapshot, "highest"),
-                number(snapshot, "sales"), number(snapshot, "days"),
-                formatTime(Instant.parse(snapshot.get("updatedAt").getAsString())),
-                formatTime(Instant.ofEpochMilli(snapshot.get("time").getAsLong()))
+                number(snapshot, "sales"), number(snapshot, "days")
         );
     }
 
