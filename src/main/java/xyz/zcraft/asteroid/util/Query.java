@@ -18,7 +18,8 @@ public class Query {
     }
 
     public Query param(String key, String value) {
-        params.put(key, URLEncoder.encode(value, StandardCharsets.UTF_8));
+        if (value != null && !value.isBlank())
+            params.put(key, URLEncoder.encode(value, StandardCharsets.UTF_8));
         return this;
     }
 

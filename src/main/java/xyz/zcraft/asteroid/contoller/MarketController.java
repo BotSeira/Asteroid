@@ -9,6 +9,7 @@ import xyz.zcraft.asteroid.config.GachaConfig;
 import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.gacha.GachaApi;
 import xyz.zcraft.asteroid.gacha.GachaMarketService;
+import xyz.zcraft.asteroid.gacha.data.GachaPlayer;
 import xyz.zcraft.asteroid.gacha.data.market.Guide;
 import xyz.zcraft.asteroid.gacha.data.market.Identifier;
 import xyz.zcraft.asteroid.gacha.data.market.MarketSummary;
@@ -133,7 +134,16 @@ public final class MarketController implements AutoCloseable {
         final String username = requirePathString(ctx, "username");
         final boolean sig = optionalBoolean(ctx, "sig", false);
 
-        final Identifier.Card identifier = Identifier.Card.of(username, sig);
+
+        final GachaPlayer player = GachaApi.searchPlayers(apiKey, username, 10, 0, "popular").stream()
+                .filter(e -> username.equalsIgnoreCase(e.username()))
+                .findFirst()
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Player not found"));
+
+        final String rarityName = GachaPlayer.getRarityName(player.currentRarity());
+        final String className = GachaPlayer.getClassName(player.cls());
+
+        final Identifier.Card identifier = Identifier.Card.of(player.username(), sig);
 
         service.fetchCardNow(identifier);
 
@@ -143,8 +153,8 @@ public final class MarketController implements AutoCloseable {
         var history = service.store.history(identifier.getUniqueId(), Math.min(start.toEpochMilli(), xyz.zcraft.asteroid.gacha.data.market.MarketTrendSettings.salesSince(end)));
         var trend = MarketTrendData.fromHistory(history, start, end);
         var data = new org.thymeleaf.context.Context();
-        data.setVariable("name", username);
-        data.setVariable("type", "卡片" + (sig ? "(签名)" : ""));
+        data.setVariable("name", player.username());
+        data.setVariable("type", (sig ? "签名" : rarityName) + " · " + className);
         data.setVariable("scale", scale);
         data.setVariable("chartData", new com.google.gson.Gson().toJson(trend));
         data.setVariable("candleSamples", trend.candleSamples());

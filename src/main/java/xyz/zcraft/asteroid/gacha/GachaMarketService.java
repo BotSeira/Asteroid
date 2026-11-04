@@ -31,7 +31,7 @@ public final class GachaMarketService implements AutoCloseable {
     public final GachaMarketStore store = new GachaMarketStore("data/gacha-market.db");
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final String apiKey;
-    private final StrictRateGate rateGate = new StrictRateGate(Duration.ofSeconds(1).toNanos());
+    private final StrictRateGate rateGate = new StrictRateGate(Duration.ofMillis(1200).toNanos());
 
     public GachaMarketService(GachaConfig conf) {
         this.apiKey = conf.apiKey();
