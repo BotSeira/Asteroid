@@ -28,6 +28,9 @@ public class GachaController {
         this.apiKey = config.apiKey();
     }
 
+    /**
+     * @deprecated because the page now requires login
+     */
     public void getUserProfile(Context ctx) {
         final String username = requirePathString(ctx, "username");
 
