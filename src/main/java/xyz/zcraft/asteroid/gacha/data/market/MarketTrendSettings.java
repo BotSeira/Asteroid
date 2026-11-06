@@ -6,7 +6,7 @@ public final class MarketTrendSettings {
 
     // Price lines and candles independently divide the requested time range.
     public static final int PRICE_PERIODS = 20;
-    public static final int CANDLE_PERIODS = 25;
+    public static final int CANDLE_PERIODS = 50;
     public enum PriceValue { FIRST, LAST, AVERAGE }
     public static final PriceValue PRICE_VALUE = PriceValue.LAST;
 
@@ -14,15 +14,7 @@ public final class MarketTrendSettings {
     public static final int DISTRIBUTION_BINS = 20;
     public static final double DISTRIBUTION_MARGIN = 1;
 
-    // Last observation per UTC+8 day bucket; affects history loading as well.
-    public static final int SALES_HISTORY_DAYS = 366;
-    public static final int SALES_BUCKET_DAYS = 1;
-
     public static final double CANDLE_PADDING_RATIO = 0.08;
     public static final double FLAT_CANDLE_PADDING_RATIO = 0.02;
     public static final double MIN_CANDLE_PADDING = 0.01;
-
-    public static long salesSince(java.time.Instant end) {
-        return end.minus(SALES_HISTORY_DAYS, java.time.temporal.ChronoUnit.DAYS).toEpochMilli();
-    }
 }

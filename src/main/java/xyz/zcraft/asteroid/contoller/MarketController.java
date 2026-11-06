@@ -83,13 +83,14 @@ public final class MarketController implements AutoCloseable {
         if (!GachaMarketService.ITEMS.contains(id))
             throw new ApiException(ErrorCode.ILLEGAL_ARGUMENT, "Unknown market item");
 
-        service.fetchItemNow(Identifier.Item.of(id));
+        var identifier = Identifier.Item.of(id);
+        service.fetchItemNow(identifier);
 
         String scale = validateScale(ctx.queryParam("scale"));
         var end = Instant.now();
         var start = rangeStart(end, scale);
-        var history = service.store.history(id, Math.min(start.toEpochMilli(), xyz.zcraft.asteroid.gacha.data.market.MarketTrendSettings.salesSince(end)));
-        var trend = MarketTrendData.fromHistory(history, start, end);
+        var history = service.store.history(id, start.toEpochMilli());
+        var trend = MarketTrendData.fromHistory(history, GachaApi.getMarketHistory(apiKey, identifier, start, end), start, end);
         var data = new org.thymeleaf.context.Context();
         data.setVariable("name", GachaMarketService.getItemName(id));
         data.setVariable("type", "物品");
@@ -150,8 +151,8 @@ public final class MarketController implements AutoCloseable {
         String scale = validateScale(ctx.queryParam("scale"));
         var end = Instant.now();
         var start = rangeStart(end, scale);
-        var history = service.store.history(identifier.getUniqueId(), Math.min(start.toEpochMilli(), xyz.zcraft.asteroid.gacha.data.market.MarketTrendSettings.salesSince(end)));
-        var trend = MarketTrendData.fromHistory(history, start, end);
+        var history = service.store.history(identifier.getUniqueId(), start.toEpochMilli());
+        var trend = MarketTrendData.fromHistory(history, GachaApi.getMarketHistory(apiKey, identifier, start, end), start, end);
         var data = new org.thymeleaf.context.Context();
         data.setVariable("name", player.username());
         data.setVariable("type", (sig ? "签名" : rarityName) + " · " + className);

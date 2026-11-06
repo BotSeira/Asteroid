@@ -18,7 +18,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 
 public class GachaApi {
@@ -87,6 +90,44 @@ public class GachaApi {
         return getSafe(apiKey, "/api/market/listings", Query.create().param("mode", "bin")
                 .param("kind", "item").param("sort", "newest")
                 .param("limit", "100").param("offset", String.valueOf(offset)));
+    }
+
+    public static List<MarketTrade> getMarketHistory(String apiKey, Identifier identifier, Instant from, Instant to) {
+        Query query = Query.create().param("mode", "bin").param("from", from).param("to", to).param("limit", 100);
+        if (identifier instanceof Identifier.Item item) {
+            query.param("kind", "item").param("itemId", item.getItemId());
+        } else if (identifier instanceof Identifier.Card card) {
+            query.param("kind", "card").param("player", card.getUsername());
+        } else {
+            throw new IllegalArgumentException("Missing market identifier");
+        }
+
+        var trades = new ArrayList<MarketTrade>();
+        var ids = new HashSet<String>();
+        var cursors = new HashSet<String>();
+        while (true) {
+            var page = getSafe(apiKey, "/api/market/history", query);
+            for (var element : page.getAsJsonArray("items")) {
+                var row = element.getAsJsonObject();
+                if (identifier instanceof Identifier.Card card) {
+                    var details = row.getAsJsonObject("card");
+                    boolean signed = details.has("sig") && !details.get("sig").isJsonNull();
+                    if (signed != card.isSig() || !details.get("player").getAsString().equalsIgnoreCase(card.getUsername()))
+                        continue;
+                }
+                var soldAt = Instant.parse(row.get("soldAt").getAsString());
+                var id = row.get("id").getAsString();
+                if (!soldAt.isBefore(from) && soldAt.isBefore(to) && ids.add(id)) {
+                    trades.add(new MarketTrade(id, soldAt, row.get("unitPrice").getAsDouble(), row.get("qty").getAsLong()));
+                }
+            }
+            var next = page.get("next");
+            if (next == null || next.isJsonNull() || next.getAsString().isBlank()) break;
+            if (!cursors.add(next.getAsString())) throw new IllegalStateException("Repeated market history cursor");
+            query.param("cursor", next.getAsString());
+        }
+        trades.sort(Comparator.comparing(MarketTrade::soldAt).thenComparing(MarketTrade::id));
+        return trades;
     }
 
     static Guide getGuide(String apiKey, GuideIdentifier identifier) {

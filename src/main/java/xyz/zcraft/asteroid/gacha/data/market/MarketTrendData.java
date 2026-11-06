@@ -4,9 +4,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.*;
 import static xyz.zcraft.asteroid.gacha.data.market.MarketTrendSettings.*;
 
@@ -19,7 +16,7 @@ public record MarketTrendData(
 ) {
     private static final long DISPLAY_OFFSET = 8 * 3600000L;
 
-    public static MarketTrendData fromHistory(JsonArray history, Instant start, Instant end) {
+    public static MarketTrendData fromHistory(JsonArray history, List<MarketTrade> trades, Instant start, Instant end) {
         List<JsonObject> all = new ArrayList<>();
         for (var entry : history) {
             var row = entry.getAsJsonObject();
@@ -27,22 +24,24 @@ public record MarketTrendData(
         }
         all.sort(Comparator.comparingLong(MarketTrendData::time));
         var recent = all.stream().filter(row -> time(row) >= start.toEpochMilli()).toList();
-        var pricePeriods = periods(recent, start, end, PRICE_PERIODS);
+        var pricePeriods = periods(recent, start, end, PRICE_PERIODS, MarketTrendData::time);
         var lowest = prices(pricePeriods, "lowest");
         var median = prices(pricePeriods, "median");
         var highest = prices(pricePeriods, "highest");
         boolean hasPrices = java.util.stream.Stream.of(lowest, median, highest)
                 .flatMap(List::stream).anyMatch(point -> point.get(1) != null);
 
-        var candlePeriods = periods(recent, start, end, CANDLE_PERIODS);
+        var candlePeriods = periods(trades, start, end, CANDLE_PERIODS, trade -> trade.soldAt().toEpochMilli());
+        List<List<Number>> sales = new ArrayList<>(CANDLE_PERIODS);
         List<List<Number>> candles = new ArrayList<>(CANDLE_PERIODS);
         int candleSamples = 0;
         double low = Double.POSITIVE_INFINITY, high = Double.NEGATIVE_INFINITY;
         for (var period : candlePeriods) {
             Double open = null, close = null, min = null, max = null;
-            for (var row : period.rows()) {
-                Double value = number(row, "lowest");
-                if (value == null || value < 0) continue;
+            long volume = 0;
+            for (var trade : period.rows()) {
+                double value = trade.unitPrice();
+                volume += trade.qty();
                 candleSamples++;
                 if (open == null) {
                     open = value;
@@ -53,7 +52,8 @@ public record MarketTrendData(
                 min = Math.min(min, value);
                 max = Math.max(max, value);
             }
-            candles.add(Arrays.asList(period.center(), open, max, min, close));
+            candles.add(Arrays.asList(period.center(), open, max, min, close, volume));
+            sales.add(List.of(period.center(), period.rows().size()));
             if (open != null) {
                 low = Math.min(low, min);
                 high = Math.max(high, max);
@@ -89,44 +89,32 @@ public record MarketTrendData(
                 }
             }
         }
-        var daily = new TreeMap<LocalDate, JsonObject>();
-        for (var row : all) {
-            if (time(row) >= salesSince(end)) {
-                var date = Instant.ofEpochMilli(time(row)).atZone(ZoneId.of("Asia/Shanghai")).toLocalDate();
-                var bucket = LocalDate.ofEpochDay(Math.floorDiv(date.toEpochDay(), SALES_BUCKET_DAYS) * SALES_BUCKET_DAYS);
-                daily.put(bucket, row);
-            }
-        }
-        List<List<Number>> sales = new ArrayList<>();
-        daily.forEach((date, row) -> sales.add(Arrays.asList(
-                date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(), number(row, "sales"))));
         return new MarketTrendData(start.toEpochMilli() + DISPLAY_OFFSET, end.toEpochMilli() + DISPLAY_OFFSET,
                 lowest, median, highest, candles, distribution, sales, candleSamples, hasPrices,
                 candleSamples == 0 ? 0 : Math.max(0, low - padding), candleSamples == 0 ? 1 : high + padding,
                 distributionMin, distributionMax);
     }
 
-    private record Period(long center, List<JsonObject> rows) {}
-
-    private static List<Period> periods(List<JsonObject> rows, Instant start, Instant end, int count) {
+    private static <T> List<Period<T>> periods(List<T> rows, Instant start, Instant end, int count,
+                                               java.util.function.ToLongFunction<T> timestamp) {
         long duration = end.toEpochMilli() - start.toEpochMilli();
         if (count <= 0 || duration < count) throw new IllegalArgumentException("Invalid chart period count or range");
-        List<Period> result = new ArrayList<>(count);
+        List<Period<T>> result = new ArrayList<>(count);
         int cursor = 0;
         for (int i = 0; i < count; i++) {
             long from = start.toEpochMilli() + duration * i / count;
             long to = start.toEpochMilli() + duration * (i + 1) / count;
-            List<JsonObject> part = new ArrayList<>();
-            while (cursor < rows.size() && (time(rows.get(cursor)) < to
-                    || i == count - 1 && time(rows.get(cursor)) == to)) {
+            List<T> part = new ArrayList<>();
+            while (cursor < rows.size() && (timestamp.applyAsLong(rows.get(cursor)) < to
+                    || i == count - 1 && timestamp.applyAsLong(rows.get(cursor)) == to)) {
                 part.add(rows.get(cursor++));
             }
-            result.add(new Period(from + (to - from) / 2 + DISPLAY_OFFSET, part));
+            result.add(new Period<>(from + (to - from) / 2 + DISPLAY_OFFSET, part));
         }
         return result;
     }
 
-    private static List<List<Number>> prices(List<Period> periods, String key) {
+    private static List<List<Number>> prices(List<Period<JsonObject>> periods, String key) {
         List<List<Number>> result = new ArrayList<>(periods.size());
         for (var period : periods) {
             Double value = null;
@@ -141,6 +129,9 @@ public record MarketTrendData(
             result.add(Arrays.asList(period.center(), value != null && value > 0 ? value : null));
         }
         return result;
+    }
+
+    private record Period<T>(long center, List<T> rows) {
     }
     private static long time(JsonObject row) {
         return row.get("time").getAsLong();
