@@ -55,8 +55,11 @@ public class BrowserUseController {
         final UUID uuid = UUID.fromString(requirePathString(ctx, "browserUuid"));
         final UUID pageUuid = UUID.fromString(requirePathString(ctx, "pageUuid"));
         final BrowserInstance browser = browserService.getBrowser(uuid);
-        browser.closePage(pageUuid);
-        putResult(ctx, "page_uuid", pageUuid.toString());
+        final boolean success = browser.closePage(pageUuid);
+        putResult(ctx, Map.of(
+                "page_uuid", pageUuid.toString(),
+                "success", success
+        ));
     }
 
     public void getPages(Context ctx) {
