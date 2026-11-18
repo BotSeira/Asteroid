@@ -6,8 +6,10 @@ import com.google.gson.JsonParser;
 import io.javalin.http.Context;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import xyz.zcraft.asteroid.exception.ApiException;
 import xyz.zcraft.asteroid.network.ErrorCode;
+import xyz.zcraft.asteroid.util.TemplateRenderer;
 import xyz.zcraft.asteroid.util.VersionInfo;
 
 import java.net.URI;
@@ -22,6 +24,11 @@ import static xyz.zcraft.asteroid.util.RequestUtil.requireString;
 public class MiscController {
     private final static Logger LOG = LogManager.getLogger(MiscController.class);
     private final static Gson GSON = new Gson();
+    private final TemplateRenderer renderer;
+
+    public MiscController(TemplateRenderer renderer) {
+        this.renderer = renderer;
+    }
 
     public void serverStatus(Context ctx) {
         putResult(ctx, Map.of("version", VersionInfo.getVersion()));
@@ -48,5 +55,17 @@ public class MiscController {
             LOG.error("Error occurred while processing nbnhhsh request", e);
             throw new ApiException(ErrorCode.FETCH_FAILED, "Failed to query text");
         }
+    }
+
+    public void burningText(@NotNull Context ctx) {
+        final String text = requireString(ctx, "text");
+
+        ctx.future(() -> renderer.renderGif(
+                        "burning-text",
+                        new org.thymeleaf.context.Context(null, Map.of("text", text)),
+                        20, 20
+                )
+                .thenAccept(bytes -> ctx.contentType("image/gif").result(bytes)));
+
     }
 }

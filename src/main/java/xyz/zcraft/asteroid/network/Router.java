@@ -7,6 +7,7 @@ import xyz.zcraft.asteroid.browser.BrowserService;
 import xyz.zcraft.asteroid.config.AppConfig;
 import xyz.zcraft.asteroid.contoller.*;
 import xyz.zcraft.asteroid.util.CosService;
+import xyz.zcraft.asteroid.util.TemplateRenderer;
 
 public class Router {
     private static final Logger LOG = LogManager.getLogger(Router.class);
@@ -23,6 +24,7 @@ public class Router {
     final CosService cos;
     final BrowserService browserService;
     final TemplateController templateController = new TemplateController();
+    final TemplateRenderer renderer = new TemplateRenderer();
 
     public Router(AppConfig conf) {
         this.conf = conf;
@@ -32,11 +34,11 @@ public class Router {
 
         this.minecraftController = new MinecraftController();
         this.ncmController = new NcmController();
-        this.miscController = new MiscController();
         this.braveSearchController = new BraveSearchController(conf.braveSearch());
         this.browserUseController = new BrowserUseController(browserService, cos);
         this.gachaController = new GachaController(browserService, conf.gacha());
-        this.marketController = new MarketController(conf.gacha());
+        this.marketController = new MarketController(conf.gacha(), renderer);
+        this.miscController = new MiscController(renderer);
 
         LOG.info("Router created");
     }

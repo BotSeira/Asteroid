@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Burning Text</title>
+
+    <style>
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+    <!--suppress ThymeleafObsoleteInlineAttributeInspection -->
+    <script th:inline="javascript">
+        document.addEventListener("DOMContentLoaded", () => {
+            const text = /*[[${text}]]*/ 'Burning';
+
+            const config = {
+                font: "Times New Roman",
+                fontSize: 64,
+                textColor: "#ff2222",
+                speed: 50,
+                smokeThreshold: 50,
+                warmupFrames: 60
+            };
+
+            const canvas = document.createElement("canvas");
+            document.body.replaceChildren(canvas);
+
+            const ctx = canvas.getContext("2d", {
+                willReadFrequently: true
+            });
+
+            // Original Burning Words palette
+            const palette = [];
+
+            for (let i = 0; i < 256; i++) {
+                if (i > 128) {
+                    palette[i] = [255, 255, 255, 255];
+                } else if (i > 110) {
+                    palette[i] = [233, 242, 63, 255];
+                } else if (i > 92) {
+                    palette[i] = [214, 102, 28, 255];
+                } else if (i > 77) {
+                    palette[i] = [90, 0, 0, 2 * i];
+                } else {
+                    palette[i] = [
+                        0, 0, 0,
+                        3 * Math.max(0, i - config.smokeThreshold)
+                    ];
+                }
+            }
+
+            let image;
+            let imageFlame;
+            let imageSource;
+            let fireDecay;
+            let fontString;
+
+            function initialize() {
+                const measure = document.createElement("canvas").getContext("2d");
+
+                let size = Math.min(
+                    config.fontSize,
+                    window.innerHeight / 2
+                );
+
+                measure.font = `${size}px ${config.font}`;
+
+                while (
+                    measure.measureText(text).width >
+                    window.innerWidth * 0.9 &&
+                    size > 10
+                    ) {
+                    size--;
+                    measure.font = `${size}px ${config.font}`;
+                }
+
+                fontString = `${size}px ${config.font}`;
+
+                // Same canvas proportions as the original library
+                canvas.width = Math.ceil(
+                    measure.measureText(text).width * 1.05
+                );
+
+                canvas.height = Math.floor(size * 1.4);
+
+                fireDecay = 70 / size;
+
+                const w = canvas.width;
+                const h = canvas.height;
+
+                image = ctx.createImageData(w, h);
+                imageFlame = ctx.createImageData(w, h);
+
+                // Draw the text into a separate source bitmap
+                const source = document.createElement("canvas");
+                source.width = w;
+                source.height = h;
+
+                const sourceCtx = source.getContext("2d");
+
+                sourceCtx.fillStyle = "#000";
+                sourceCtx.fillRect(0, 0, w, h);
+
+                sourceCtx.fillStyle = "#fff";
+                sourceCtx.font = fontString;
+                sourceCtx.textAlign = "center";
+                sourceCtx.textBaseline = "bottom";
+                sourceCtx.fillText(text, w / 2, h);
+
+                imageSource = sourceCtx.getImageData(0, 0, w, h);
+            }
+
+            function updateFlame() {
+                const widthRGBA = canvas.width * 4;
+                const length = widthRGBA * canvas.height;
+
+                const src = imageSource.data;
+                const flame = imageFlame.data;
+
+                // Generate fire sources
+                for (let pos = 0; pos < length; pos += 4) {
+                    if (src[pos] === 255) {
+                        flame[pos] = Math.floor(Math.random() * 256);
+                    }
+                }
+
+                // Propagate fire upward
+                for (let pos = 0; pos < length - widthRGBA; pos += 4) {
+                    const x = pos % widthRGBA;
+
+                    const l = flame[
+                    ((x === 0) ? pos + widthRGBA : pos) - 4
+                        ];
+
+                    const r = flame[
+                    ((x === widthRGBA - 4) ? pos - widthRGBA : pos) + 4
+                        ];
+
+                    const b = flame[pos + widthRGBA];
+
+                    flame[pos] = Math.max(
+                        0,
+                        Math.floor((l + r + b + b) / 4 - fireDecay)
+                    );
+                }
+            }
+
+            function drawFlame() {
+                const flame = imageFlame.data;
+                const output = image.data;
+
+                for (let pos = 0; pos < flame.length; pos += 4) {
+                    const intensity = flame[pos];
+
+                    if (intensity > config.smokeThreshold) {
+                        const color = palette[intensity];
+
+                        output[pos] = color[0];
+                        output[pos + 1] = color[1];
+                        output[pos + 2] = color[2];
+                        output[pos + 3] = color[3];
+                    } else {
+                        output[pos] = 0;
+                        output[pos + 1] = 0;
+                        output[pos + 2] = 0;
+                        output[pos + 3] = 0;
+                    }
+                }
+
+                ctx.putImageData(image, 0, 0);
+
+                ctx.fillStyle = config.textColor;
+                ctx.font = fontString;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "bottom";
+                ctx.fillText(
+                    text,
+                    canvas.width / 2,
+                    canvas.height
+                );
+            }
+
+            function render() {
+                updateFlame();
+                drawFlame();
+            }
+
+            let timer = null;
+            let ready = false;
+
+            function initializeAndWarmup() {
+                ready = false;
+
+                initialize();
+
+                for (let i = 0; i < 60; i++) {
+                    updateFlame();
+                }
+
+                drawFlame();
+                ready = true;
+            }
+
+            initializeAndWarmup();
+
+            timer = setInterval(render, config.speed);
+
+            window.burning = {
+                get ready() {
+                    return ready;
+                },
+
+                stop() {
+                    clearInterval(timer);
+                    timer = null;
+                },
+
+                nextFrame() {
+                    if (!ready) {
+                        throw new Error("Burning animation is not initialized");
+                    }
+
+                    render();
+                }
+            };
+
+            window.addEventListener("resize", initializeAndWarmup);
+        });
+    </script>
+</head>
+<body></body>
+</html>

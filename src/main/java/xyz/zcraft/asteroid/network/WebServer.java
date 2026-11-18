@@ -84,6 +84,7 @@ public class WebServer implements Closeable {
                     .get("/gacha/players/search", router.gachaController::searchPlayer)
 
                     .get("/nbnhhsh", router.miscController::nbnhhsh)
+                    .get("/burning-text", router.miscController::burningText)
 
                     .get("/health", router.miscController::serverStatus)
             ;

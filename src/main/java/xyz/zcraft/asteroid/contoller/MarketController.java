@@ -15,6 +15,7 @@ import xyz.zcraft.asteroid.gacha.data.market.Identifier;
 import xyz.zcraft.asteroid.gacha.data.market.MarketSummary;
 import xyz.zcraft.asteroid.gacha.data.market.MarketTrendData;
 import xyz.zcraft.asteroid.network.ErrorCode;
+import xyz.zcraft.asteroid.util.TemplateRenderer;
 import xyz.zcraft.image.HtmlRenderer;
 
 import java.io.IOException;
@@ -26,34 +27,13 @@ import static xyz.zcraft.asteroid.util.RequestUtil.*;
 
 public final class MarketController implements AutoCloseable {
     private final GachaMarketService service;
-    private final TemplateEngine engine = new TemplateEngine();
-    private static final byte[] ECHARTS = loadECharts();
-    private final HtmlRenderer renderer = new HtmlRenderer(2, 32, 30000,
-            browser -> browser.route("http://asteroid-assets/echarts.js",
-                    route -> route.fulfill(new Route.FulfillOptions().setContentType("application/javascript").setBodyBytes(ECHARTS))
-            )
-    );
-
-    private static byte[] loadECharts() {
-        try (var stream = MarketController.class.getResourceAsStream("/vendor/echarts/echarts.min.js")) {
-            if (stream == null) throw new IllegalStateException("Missing bundled ECharts");
-            return stream.readAllBytes();
-        } catch (IOException e) {
-            throw new IllegalStateException("Cannot load ECharts", e);
-        }
-    }
+    private final TemplateRenderer renderer;
     private final String apiKey;
 
-    public MarketController(GachaConfig conf) {
+    public MarketController(GachaConfig conf, TemplateRenderer renderer) {
         this.service = new GachaMarketService(conf);
         this.apiKey = conf.apiKey();
-
-        var resolver = new ClassLoaderTemplateResolver();
-        resolver.setPrefix("/template/");
-        resolver.setSuffix(".html");
-        resolver.setCharacterEncoding("UTF-8");
-        resolver.setTemplateMode("HTML");
-        engine.setTemplateResolver(resolver);
+        this.renderer = renderer;
     }
 
     public static String validateScale(String scale) {
@@ -102,7 +82,7 @@ public final class MarketController implements AutoCloseable {
             data.setVariable("summary", MarketSummary.fromJson(latest));
         }
 
-        ctx.future(() -> renderer.render(engine.process("gacha-market-item-trend", data))
+        ctx.future(() -> renderer.render("gacha-market-item-trend", data)
                 .thenAccept(bytes -> ctx.contentType("image/png").result(bytes)));
     }
 
@@ -164,7 +144,7 @@ public final class MarketController implements AutoCloseable {
             data.setVariable("summary", MarketSummary.fromJson(latest));
         }
 
-        ctx.future(() -> renderer.render(engine.process("gacha-market-item-trend", data))
+        ctx.future(() -> renderer.render("gacha-market-item-trend", data)
                 .thenAccept(bytes -> ctx.contentType("image/png").result(bytes)));
     }
 }

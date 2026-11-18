@@ -31,6 +31,7 @@ public class GachaController {
     /**
      * @deprecated because the page now requires login
      */
+    @Deprecated
     public void getUserProfile(Context ctx) {
         final String username = requirePathString(ctx, "username");
 
